@@ -3,11 +3,11 @@ package main
 import (
 	"config"
 	"prep"
-	"time"
 	"fmt"
 	"net/http"
 	"daemons"
 	"web"
+	"time"
 )
 
 func main() {
@@ -15,28 +15,26 @@ func main() {
 	cfg := config.Parser()
 
 	// Делаем коннекты с базой
-	sqli, r := prep.InitDB(cfg)
+	sqli, _ := prep.InitDB(cfg)
 
-	tickers := time.NewTicker(1 * time.Second) // Вызываем тикер. Он же является каналом
-	quit := make(chan int) // Создаем канал для обрыва работы
+	daemons.Assets(sqli)
+	//daemons.Base(sqli)
+
+	tickers := time.NewTicker(5 * time.Second) // Вызываем тикер. Он же является каналом
 	go func() { // Рутинная задача
 		for {
 			select { // Ожидаем данных
 			case <- tickers.C:
-				daemons.Base(sqli, r)
-			case <- quit: // Заканчиваем работу (когда и зачем - неясно)
-				tickers.Stop()
-				close(quit)
-				return
+				daemons.Base(sqli)
 			}
 		}
 	}()
-	if true == false { // На случай апокалипсиса
-		quit <- 0 // Посылаем данные в канал о завершении работы
-	}
 
 	// Заглушки
 	http.HandleFunc("/", web.Base)
+	http.HandleFunc("/api",  func(w http.ResponseWriter, r *http.Request) {
+		daemons.Api(w, r, sqli)
+	})
 
 	// Воркеры
 	//http.HandleFunc("/scripts/",  func(w http.ResponseWriter, r *http.Request) {

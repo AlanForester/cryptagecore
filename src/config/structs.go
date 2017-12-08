@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 type Settings struct {
 	Postgre struct {
 		Host string `json:"host"`
@@ -15,4 +17,13 @@ type Settings struct {
 		Port     string  `json:"Port" bson:"Port"`
 	}
 	Port string `json:"port"`
+}
+
+type InsertTickers struct {
+	Market string
+	Valute string
+	Value float64
+	Ask float64
+	Bid float64
+	Time time.Time
 }

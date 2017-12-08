@@ -6,9 +6,11 @@ package prep
 
 import (
 	_ "pq"
-	"sqlx"
+
 	"config"
 	"redis.v4"
+	_ "database/sql"
+	"sqlx"
 )
 
 // Он, главный. Инфа сотка
@@ -34,7 +36,16 @@ func RedisOn(config config.Settings) *redis.Client {
 // Подключение к PG
 func startPG(cfg config.Settings) *sqlx.DB {
 	// Взлетаем
-	db, err := sqlx.Connect("postgres", "postgres://" + cfg.Postgre.User + ":" + cfg.Postgre.Passw + "@" + cfg.Postgre.Host + ":" + cfg.Postgre.Port + "/" + cfg.Postgre.Database + "?sslmode=disable")
+	db, err := sqlx.Open("postgres", "postgres://" + cfg.Postgre.User + ":" + cfg.Postgre.Passw + "@" + cfg.Postgre.Host + ":" + cfg.Postgre.Port + "/" + cfg.Postgre.Database + "?sslmode=disable")
+	db.SetMaxIdleConns(5)
+	db.SetMaxOpenConns(90)
+
+	if err != nil{
+		panic("m=GetPool,msg=connection has failed" + err.Error())
+	}
+
+
+
 	if err != nil {
 		return nil
 	} else {
