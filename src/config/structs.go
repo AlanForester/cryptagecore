@@ -21,25 +21,15 @@ type Settings struct {
 }
 
 type Users struct {
-	UUid int `db:"pid" json:"PID"`
-	Id string `json:"id"`
+	Id int64 `json:"id"`
 	Username string `json:"username"`
 	Password string `json:"password"`
 	Email string `json:"email"`
-	Hidden bool `json:"hidden"`
 	Banned bool `json:"banned"`
-	Protected bool `json:"protected"`
 	Name string `json:"name"`
-	Gender string `json:"gender"`
-	Avatar string `json:"avatar"`
 	Role int `json:"role"`
-	Posts int `json:"posts"`
-	Other string `json:"other"`
-	IP string `db:"ip" json:"ip"`
 	CreatedAt time.Time `db:"date" json:"createdAt"`
 
-	Rolesname string `db:"rolesname" json:"rolesname"`
-	Rolesid   string `json:"rolesid" json:"rolesid"`
 }
 
 type InsertTickers struct {

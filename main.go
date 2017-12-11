@@ -32,7 +32,9 @@ func main() {
 
 	// Заглушки
 	http.HandleFunc("/", web.Base)
-	web.LoadHttp("/api", sqli, daemons.Api)
+	web.LoadHttp("/api", sqli, daemons.Api) // Deprecated
+	web.LoadHttp("/user/api", sqli, daemons.Api)
+	web.LoadHttp("/user/settings", sqli, daemons.Settings)
 	web.LoadUHttp("/site/login", sqli, web.UserLogin)
 
 	// Воркеры

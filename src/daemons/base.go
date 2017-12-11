@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"encoding/json"
 	"jwt"
+	"web"
+	"config"
 )
 
 type ApiData struct {
@@ -24,6 +26,15 @@ type ApiData struct {
 		Diff float64 `json:"diff" db:"diff"`
 		Time time.Time `json:"time" db:"time"`
 	} `json:"result"`
+}
+
+func saveData(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string) {
+	a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6)", key1, key2, price, hi, low, t)
+	if e == nil {
+		a.Close()
+	} else {
+		panic(e)
+	}
 }
 
 func Base(db *sqlx.DB) {
@@ -54,14 +65,7 @@ func Base(db *sqlx.DB) {
 				if !isset {
 					markets = append(markets, key[0])
 				}
-
-				//fmt.Println(key[0], key[1], FloatToString(v.Price.Last), FloatToString(v.Price.High), FloatToString(v.Price.Low), time.Now().Format(time.RFC3339))
-				a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6)", key[0], key[1], FloatToString(v.Price.Last), FloatToString(v.Price.High), FloatToString(v.Price.Low), time.Now().Format(time.RFC3339))
-				if e == nil {
-					a.Close()
-				} else {
-					panic(e)
-				}
+				go saveData(db, key[0], key[1], FloatToString(v.Price.Last), FloatToString(v.Price.High), FloatToString(v.Price.Low), time.Now().Format(time.RFC3339))
 			}
 		}
 		if len(temp) > 0 {
@@ -147,6 +151,25 @@ func Api(w http.ResponseWriter, r *http.Request, db *sqlx.DB, _ map[string]inter
 	fmt.Println(string(res))
 	fmt.Fprintf(w, string(res))
 	return
+}
+
+func Settings(w http.ResponseWriter, r *http.Request, db *sqlx.DB, data map[string]interface{}, _ *jwt.Claims)  {
+	result := make(map[string]interface{})
+	if data["user"] != nil {
+		result["valud"] = true
+		if data["data"] != nil {
+			db.Query("UPDATE users SET settings=$1 WHERE id=$1", data["data"], data["user"].(int64))
+		} else {
+			var u config.Users
+			db.Select(&u, "SELECT settings, id FROM users WHERE id=$1", data["user"].(int64))
+		}
+		out, _ := json.Marshal(result)
+		fmt.Fprintln(w, string(out))
+		return
+	} else {
+		web.SetHeaders(w, 403)
+		return
+	}
 }
 
 func Assets (db *sqlx.DB) {

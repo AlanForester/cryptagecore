@@ -48,9 +48,8 @@ func SetAuth(user config.Users) (bool, string) {
 	al := jwt.HmacSha512(conf.Jwt)
 
 	claims := jwt.NewClaim()
-	claims.Set("ID", strconv.Itoa(user.UUid))
-	claims.Set("Roles", user.Role)
-	claims.Set("RoleID", user.Rolesid)
+	claims.Set("ID", strconv.FormatInt(user.Id, 64))
+	claims.Set("Role", user.Role)
 
 	token, err := al.Encode(claims)
 	if err == nil {

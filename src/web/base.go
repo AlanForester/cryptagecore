@@ -26,15 +26,15 @@ func UserLogin(w http.ResponseWriter, r *http.Request, db *sqlx.DB, values map[s
 				result["valid"] = true
 				result["token"] = res
 			} else {
-				result["valid"] = true
+				result["valid"] = false
 				result["error"] = "internal_error"
 			}
 		} else {
-			result["valid"] = true
+			result["valid"] = false
 			result["error"] = "no_user"
 		}
 	} else {
-		result["valid"] = true
+		result["valid"] = false
 		result["error"] = "no_data"
 	}
 	out, _ := json.Marshal(result)
