@@ -32,9 +32,8 @@ func main() {
 
 	// Заглушки
 	http.HandleFunc("/", web.Base)
-	http.HandleFunc("/api",  func(w http.ResponseWriter, r *http.Request) {
-		daemons.Api(w, r, sqli)
-	})
+	web.LoadHttp("/api", sqli, daemons.Api)
+	web.LoadUHttp("/site/login", sqli, web.UserLogin)
 
 	// Воркеры
 	//http.HandleFunc("/scripts/",  func(w http.ResponseWriter, r *http.Request) {

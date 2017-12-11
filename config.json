@@ -2,8 +2,8 @@
   "postgre": {
     "host": "127.0.0.1",
     "port": "5432",
-    "passw": "cryptage",
-    "user": "cryptage",
+    "passw": "12345",
+    "user": "postgres",
     "database": "cryptage"
   },
   "Redis": {
@@ -11,5 +11,6 @@
     "Host": "127.0.0.1",
     "Port": "6379"
   },
+  "jwt": "megahash",
   "port": "8089"
 }

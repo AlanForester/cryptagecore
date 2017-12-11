@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"encoding/json"
+	"jwt"
 )
 
 type ApiData struct {
@@ -132,29 +133,20 @@ func Base(db *sqlx.DB) {
 	//}
 }
 
-func Api(w http.ResponseWriter, r *http.Request, db *sqlx.DB)  {
-	if r.Method == "POST" {
-		var result ApiData
-		result.Valid = true
-		tt := time.Now().Add(time.Minute * -5).Format(time.RFC3339)
-		//e := db.Select(&result.Result, "SELECT pair_id, base_key, quote_key, e1.name as e1_name, e2.name as e2_name, divergent.time as time, diff, p.pair_name as p_name FROM divergent LEFT JOIN exchanges AS e1 ON (exchanges1_id=e1.id) LEFT JOIN exchanges AS e2 ON (exchanges2_id=e2.id) LEFT JOIN pairs as p ON (pair_id=p.id) WHERE divergent.time > '" + tt + "' ORDER BY diff DESC LIMIT 1000")
-		e := db.Select(&result.Result, "SELECT e1.name as e1_name, e2.name as e2_name, MIN(divergent.time) as time, AVG(divergent.diff) as diff, p.pair_name as p_name FROM divergent LEFT JOIN exchanges AS e1 ON (exchanges1_id=e1.id) LEFT JOIN exchanges AS e2 ON (exchanges2_id=e2.id) LEFT JOIN pairs as p ON (pair_id=p.id) WHERE divergent.time > '" + tt + "' GROUP BY e1.name, e2.name, p.pair_name ORDER BY diff DESC LIMIT 200")
-		if e != nil {
-			fmt.Println(e)
-		}
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-		res, e := json.Marshal(result)
-		fmt.Println(string(res))
-		fmt.Fprintf(w, string(res))
-		return
-	} else {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS")
-		return
+func Api(w http.ResponseWriter, r *http.Request, db *sqlx.DB, _ map[string]interface{}, data *jwt.Claims)  {
+	var result ApiData
+	result.Valid = true
+	tt := time.Now().Add(time.Minute * -5).Format(time.RFC3339)
+	//e := db.Select(&result.Result, "SELECT pair_id, base_key, quote_key, e1.name as e1_name, e2.name as e2_name, divergent.time as time, diff, p.pair_name as p_name FROM divergent LEFT JOIN exchanges AS e1 ON (exchanges1_id=e1.id) LEFT JOIN exchanges AS e2 ON (exchanges2_id=e2.id) LEFT JOIN pairs as p ON (pair_id=p.id) WHERE divergent.time > '" + tt + "' ORDER BY diff DESC LIMIT 1000")
+	e := db.Select(&result.Result, "SELECT e1.name as e1_name, e2.name as e2_name, MIN(divergent.time) as time, AVG(divergent.diff) as diff, p.pair_name as p_name FROM divergent LEFT JOIN exchanges AS e1 ON (exchanges1_id=e1.id) LEFT JOIN exchanges AS e2 ON (exchanges2_id=e2.id) LEFT JOIN pairs as p ON (pair_id=p.id) WHERE divergent.time > '" + tt + "' GROUP BY e1.name, e2.name, p.pair_name ORDER BY diff DESC LIMIT 200")
+	if e != nil {
+		fmt.Println(e)
 	}
+
+	res, e := json.Marshal(result)
+	fmt.Println(string(res))
+	fmt.Fprintf(w, string(res))
+	return
 }
 
 func Assets (db *sqlx.DB) {
