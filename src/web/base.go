@@ -6,6 +6,7 @@ import (
 	"sqlx"
 	"encoding/json"
 	"config"
+	"helpers"
 )
 
 // Хандлер - заглушка. В планах логировать все обращения к нему
@@ -21,7 +22,7 @@ func UserLogin(w http.ResponseWriter, r *http.Request, db *sqlx.DB, values map[s
 		var users config.Users
 		//users, err := helpers.GetUserByLP(values["email"].(string), values["password"].(string), db)
 		if err == nil {
-			is, res := SetAuth(users)
+			is, res := helpers.SetAuth(users)
 			if is {
 				result["valid"] = true
 				result["token"] = res

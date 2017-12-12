@@ -18,9 +18,9 @@ func InitDB(cfg config.Settings) (*sqlx.DB, *redis.Client) {
 	// Хотим ПГ
 	sqli := startPG(cfg)
 	// И немножко редиса
-	r := RedisOn(cfg)
+	//r := RedisOn(cfg)
 
-	return sqli, r
+	return sqli, nil
 }
 
 func RedisOn(config config.Settings) *redis.Client {
