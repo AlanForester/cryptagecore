@@ -38,7 +38,7 @@ func startPG(cfg config.Settings) *sqlx.DB {
 	// Взлетаем
 	db, err := sqlx.Open("postgres", "postgres://" + cfg.Postgre.User + ":" + cfg.Postgre.Passw + "@" + cfg.Postgre.Host + ":" + cfg.Postgre.Port + "/" + cfg.Postgre.Database + "?sslmode=disable")
 	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(90)
+	db.SetMaxOpenConns(50)
 
 	if err != nil{
 		panic("m=GetPool,msg=connection has failed" + err.Error())

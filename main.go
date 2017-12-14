@@ -3,10 +3,9 @@ package main
 import (
 	"config"
 	"prep"
-	"fmt"
-	"net/http"
 	"daemons"
-	"web"
+	"go-poloniex"
+	"go-bittrex"
 	"time"
 )
 
@@ -17,35 +16,23 @@ func main() {
 	// Делаем коннекты с базой
 	sqli, _ := prep.InitDB(cfg)
 
-	daemons.Assets(sqli)
-	//daemons.Base(sqli)
+	//start := time.Now().UnixNano()
 
-	tickers := time.NewTicker(5 * time.Second) // Вызываем тикер. Он же является каналом
-	go func() { // Рутинная задача
+	// Делаем коннекты к биржам
+	polon := poloniex.New("CNVUTAVQ-YGE5S5HN-0FA8BA7U-QQC2MRAP", "abec87d8ba68ed29893927e770879e8291003f5cfc3cf9cf3ae6bdcfd2c293f8f2f43c84b5d966d668c742165df71fc8207e7a0eed1e8052e83b5195b4775792")
+	bitt := bittrex.New("88e548ba9f424c5bbd6706555aa69109", "b1c0bf1aa947490c8a5a1c9a20ae2188")
+
+	//daemons.Base(sqli, bitt, polon)
+
+	tickers := time.NewTicker(2 * time.Second) // Вызываем тикер. Он же является каналом
+	func() {
 		for {
-			select { // Ожидаем данных
+			select {
 			case <- tickers.C:
-				daemons.Base(sqli)
+				daemons.Base(sqli, bitt, polon)
 			}
 		}
 	}()
 
-	// Заглушки
-	http.HandleFunc("/", web.Base)
-	web.LoadHttp("/api", sqli, web.Api) // Deprecated
-	web.LoadHttp("/user/api", sqli, web.Api)
-	web.LoadHttp("/user/markets", sqli, web.Api)
-	web.LoadHttp("/user/pairs", sqli, web.Api)
-	web.LoadHttp("/user/actives", sqli, web.Api)
-	web.LoadHttp("/user/settings", sqli, web.Settings)
-	web.LoadUHttp("/site/login", sqli, web.UserLogin)
-
-	// Воркеры
-	//http.HandleFunc("/scripts/",  func(w http.ResponseWriter, r *http.Request) {
-	//	scripts.Main(w, r, redisSrv, db)
-	//})
-
-	// Прослушиваем порт из конфига
-	fmt.Println("Server started on "+cfg.Port)
-	http.ListenAndServe(":"+cfg.Port, nil)
+	//fmt.Println(time.Now().UnixNano() - start)
 }

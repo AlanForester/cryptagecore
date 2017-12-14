@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-func SaveTickers(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string) {
-	a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6)", key1, key2, price, hi, low, t)
+func SaveTickers(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
+	a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7)", key1, key2, price, hi, low, t, volume)
 	if e == nil {
 		a.Close()
 	} else {

@@ -1,10 +1,10 @@
 {
   "postgre": {
-    "host": "127.0.0.1",
+    "host": "10.0.1.1",
     "port": "5432",
     "passw": "12345",
     "user": "postgres",
-    "database": "cryptage"
+    "database": "bc"
   },
   "Redis": {
     "Database": 1,

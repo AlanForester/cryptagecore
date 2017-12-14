@@ -22,13 +22,14 @@ type Settings struct {
 
 type Users struct {
 	Id int64 `json:"id"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email string `json:"email"`
-	Banned bool `json:"banned"`
-	Name string `json:"name"`
-	Role int `json:"role"`
-	CreatedAt time.Time `db:"date" json:"createdAt"`
+	Userlogin string `json:"userlogin" db:"userlogin"`
+	Password string `json:"password" db:"password"`
+	Email string `json:"email" db:"email"`
+	Banned bool `json:"banned" db:"banned"`
+	Username string `json:"username" db:"username"`
+	Role int `json:"role" db:"role"`
+	Settings string `json:"settings" db:"settings"`
+	Created time.Time `db:"created" json:"created"`
 
 }
 

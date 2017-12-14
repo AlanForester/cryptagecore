@@ -11,7 +11,7 @@ Target Server Type    : PGSQL
 Target Server Version : 90504
 File Encoding         : 65001
 
-Date: 2017-12-08 20:25:15
+Date: 2017-12-14 17:16:20
 */
 
 
@@ -23,9 +23,9 @@ CREATE SEQUENCE "assets_ids"
  INCREMENT 1
  MINVALUE 0
  MAXVALUE 9223372036854775807
- START 2035
+ START 2050
  CACHE 1;
-SELECT setval('"public"."assets_ids"', 2035, true);
+SELECT setval('"public"."assets_ids"', 2050, true);
 
 -- ----------------------------
 -- Sequence structure for excange_ids
@@ -35,9 +35,9 @@ CREATE SEQUENCE "excange_ids"
  INCREMENT 1
  MINVALUE 0
  MAXVALUE 9223372036854775807
- START 351
+ START 356
  CACHE 1;
-SELECT setval('"public"."excange_ids"', 351, true);
+SELECT setval('"public"."excange_ids"', 356, true);
 
 -- ----------------------------
 -- Sequence structure for market_ids
@@ -59,9 +59,9 @@ CREATE SEQUENCE "pair_ids"
  INCREMENT 1
  MINVALUE 0
  MAXVALUE 9223372036854775807
- START 3044
+ START 3562
  CACHE 1;
-SELECT setval('"public"."pair_ids"', 3044, true);
+SELECT setval('"public"."pair_ids"', 3562, true);
 
 -- ----------------------------
 -- Sequence structure for tikers_ids
@@ -71,9 +71,20 @@ CREATE SEQUENCE "tikers_ids"
  INCREMENT 1
  MINVALUE 0
  MAXVALUE 9223372036854775807
- START 19254
+ START 36105
  CACHE 1;
-SELECT setval('"public"."tikers_ids"', 19254, true);
+SELECT setval('"public"."tikers_ids"', 36105, true);
+
+-- ----------------------------
+-- Sequence structure for user_ids
+-- ----------------------------
+DROP SEQUENCE IF EXISTS "user_ids";
+CREATE SEQUENCE "user_ids"
+ INCREMENT 1
+ MINVALUE 0
+ MAXVALUE 9223372036854775807
+ START 0
+ CACHE 1;
 
 -- ----------------------------
 -- Table structure for assets
@@ -213,7 +224,27 @@ CREATE TABLE "tikers_source" (
 "ask" float8,
 "bid" float8,
 "time" timestamptz(6),
-"id" int8 DEFAULT nextval('tikers_ids'::regclass) NOT NULL
+"id" int8 DEFAULT nextval('tikers_ids'::regclass) NOT NULL,
+"volume" float8
+)
+WITH (OIDS=FALSE)
+
+;
+
+-- ----------------------------
+-- Table structure for users
+-- ----------------------------
+DROP TABLE IF EXISTS "users";
+CREATE TABLE "users" (
+"id" int8 DEFAULT nextval('assets_ids'::regclass) NOT NULL,
+"userlogin" varchar(255) COLLATE "default" NOT NULL,
+"password" varchar(255) COLLATE "default" NOT NULL,
+"email" varchar(255) COLLATE "default" NOT NULL,
+"banned" bool DEFAULT false NOT NULL,
+"username" varchar(255) COLLATE "default" NOT NULL,
+"role" int4 NOT NULL,
+"created" timestamptz(6) NOT NULL,
+"settings" varchar COLLATE "default" DEFAULT ''::character varying NOT NULL
 )
 WITH (OIDS=FALSE)
 
@@ -262,7 +293,7 @@ return _id;
 
 END;
 $BODY$
-  LANGUAGE 'plpgsql' IMMUTABLE COST 100
+  LANGUAGE 'plpgsql' VOLATILE COST 100
 ;
 
 -- ----------------------------
@@ -285,13 +316,26 @@ return _id;
 
 END;
 $BODY$
-  LANGUAGE 'plpgsql' IMMUTABLE COST 100
+  LANGUAGE 'plpgsql' VOLATILE COST 100
+;
+
+-- ----------------------------
+-- Function structure for get_role_id
+-- ----------------------------
+CREATE OR REPLACE FUNCTION "get_role_id"("key" varchar)
+  RETURNS "pg_catalog"."int8" AS $BODY$BEGIN
+	--Routine body goes here...
+
+	RETURN 0;
+END
+$BODY$
+  LANGUAGE 'plpgsql' VOLATILE COST 100
 ;
 
 -- ----------------------------
 -- Function structure for save_tikers
 -- ----------------------------
-CREATE OR REPLACE FUNCTION "save_tikers"("p_exchange" varchar, "p_pair" varchar, "p_value" float8, "p_ask" float8, "p_bid" float8, "p_time" timestamp)
+CREATE OR REPLACE FUNCTION "save_tikers"("p_exchange" varchar, "p_pair" varchar, "p_value" float8, "p_ask" float8, "p_bid" float8, "p_time" timestamp, "p_volume" float8)
   RETURNS "pg_catalog"."void" AS $BODY$DECLARE
   _exchange_id exchanges.id%TYPE;
   _pair_id pairs.id%TYPE;
@@ -299,7 +343,7 @@ CREATE OR REPLACE FUNCTION "save_tikers"("p_exchange" varchar, "p_pair" varchar,
 BEGIN
 	--Routine body goes here...
 
-	INSERT INTO tikers_source(time,exchange,pair,value,ask,bid) values(p_time,p_exchange,p_pair,p_value,p_ask,p_bid);
+	INSERT INTO tikers_source(time,exchange,pair,value,ask,bid, volume) values(p_time,p_exchange,p_pair,p_value,p_ask,p_bid, p_volume);
 
 	SELECT get_exchange_id(p_exchange) INTO _exchange_id;
 	SELECT get_pair_id(p_pair) INTO _pair_id;
@@ -448,3 +492,8 @@ ALTER TABLE "tikers_1s" ADD PRIMARY KEY ("id");
 -- Primary Key structure for table tikers_source
 -- ----------------------------
 ALTER TABLE "tikers_source" ADD PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table users
+-- ----------------------------
+ALTER TABLE "users" ADD PRIMARY KEY ("id");
