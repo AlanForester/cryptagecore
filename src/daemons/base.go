@@ -54,8 +54,9 @@ func Base(db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex) {
 					if bid > ask {
 						summ = (bid * 100 / ask) - 100
 					}
-
-					sqlStr += "(get_pair_id('" + name + "'), get_exchange_id('bittrex'), get_exchange_id('poloniex'), " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+					if summ > 0 {
+						sqlStr += "(get_pair_id('" + name + "'), get_exchange_id('bittrex'), get_exchange_id('poloniex'), " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+					}
 					break
 				}
 			}
