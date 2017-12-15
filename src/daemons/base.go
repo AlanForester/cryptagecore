@@ -41,10 +41,18 @@ func Base(db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex) {
 				name := strings.ToLower(strings.Replace(pk, "_", "-", -1))
 				if strings.ToLower(bv.MarketName) == name {
 					var summ float64
-					if bv.Last.String() != "" && pv.Last.String() != "" {
-						sb, _ := bv.Last.Float64()
-						sp, _ := pv.Last.Float64()
-						summ = (sp * 100 / sb) - 100
+					var bid float64
+					var ask float64
+
+					bid, _ = bv.Bid.Float64()
+					ask, _ = pv.LowestAsk.Float64()
+					if bid > ask {
+						summ = (bid * 100 / ask) - 100
+					}
+					bid, _ = pv.HighestBid.Float64()
+					ask, _ = bv.Ask.Float64()
+					if bid > ask {
+						summ = (bid * 100 / ask) - 100
 					}
 
 					sqlStr += "(get_pair_id('" + name + "'), get_exchange_id('bittrex'), get_exchange_id('poloniex'), " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
