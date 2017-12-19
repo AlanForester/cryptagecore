@@ -3,10 +3,20 @@ package helpers
 import (
 	"sqlx"
 	"fmt"
+	"time"
 )
 
 func SaveTickers(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
 	a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7)", key1, key2, price, hi, low, t, volume)
+	if e == nil {
+		a.Close()
+	} else {
+		panic(e)
+	}
+}
+
+func SaveInternal(db *sqlx.DB, asset1 string, asset2 string, asset3 string, percent float64, exchange string)  {
+	a, e := db.Query("SELECT save_internal($1, $2, $3, $4, $5, $6)", asset1, asset2, asset3, percent, exchange, time.Now().Format(time.RFC3339))
 	if e == nil {
 		a.Close()
 	} else {
