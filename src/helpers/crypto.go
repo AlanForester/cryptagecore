@@ -4,14 +4,19 @@ import (
 	"sqlx"
 	"fmt"
 	"time"
+	"strings"
 )
 
 func SaveTickers(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
-	a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7)", key1, key2, price, hi, low, t, volume)
-	if e == nil {
-		a.Close()
-	} else {
-		panic(e)
+	keys := strings.Split(key2, "-")
+	if len(keys) == 2 {
+		fmt.Println(key1, keys[0], keys[1], price, hi, low, t, volume)
+		a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7, $8)", key1, keys[0], keys[1], price, hi, low, t, volume)
+		if e == nil {
+			a.Close()
+		} else {
+			panic(e)
+		}
 	}
 }
 
