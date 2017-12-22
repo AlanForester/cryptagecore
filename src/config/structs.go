@@ -18,6 +18,7 @@ type Settings struct {
 	}
 	Jwt string `json:"jwt"`
 	Port string `json:"port"`
+	Yobit bool `json:"yobit"`
 }
 
 type Users struct {
@@ -77,6 +78,15 @@ type PairData struct {
 	} `json:"result"`
 }
 
+type DBPair struct {
+	Id int8 `json:"id" db:"id"`
+	BaseKey string `json:"base_key" db:"base_key"`
+	BaseName string `json:"base_name" db:"base_name"`
+	QuoteKey string `json:"quote_key" db:"quote_key"`
+	QuoteName string `json:"quote_name" db:"quote_name"`
+	PairName string `json:"pair_name" db:"pair_name"`
+}
+
 type Summary struct {
 	Price struct {
 		Last float64 `json:"last"`
@@ -131,4 +141,29 @@ type AList struct {
 
 type Assets struct {
 	Result []AList
+}
+
+type Signal struct {
+	Id int64 `json:"id" db:"id"`
+	Name string `json:"name" db:"name"`
+	UserId int64 `json:"user_id" db:"user_id"`
+	Types int `json:"type" db:"type"`
+	Exchange1 string `json:"exchange1" db:"exchange1"`
+	Exchange2 string `json:"exchange2" db:"exchange2"`
+	Asset1 string `json:"asset1" db:"asset1"`
+	Asset2 string `json:"asset2" db:"asset2"`
+	Asset3 string `json:"asset3" db:"asset3"`
+	Data1 int `json:"data1" db:"data1"` // 1 - расхождение на больше внешний, 2 - расх. на меньше внешний, 3 - расх. на больше внутрн 4 - ...
+	Data2 float64 `json:"data2" db:"data2"`
+}
+
+type CD struct { // Compare Data
+	Market string `json:"market"`
+	Pair string `json:"pair"`
+	DelimPair string `json:"delimPair"`
+	Bid float64 `json:"bid"`
+	Ask float64
+	Volume string `json:"volume"`
+	Pair1 string `json:"pair_1"`
+	Pair2 string `json:"pair_2"`
 }

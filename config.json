@@ -12,5 +12,6 @@
     "Port": "6379"
   },
   "jwt": "megahash",
-  "port": "8089"
+  "port": "8089",
+  "yobit": false
 }

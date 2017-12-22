@@ -117,6 +117,22 @@ func (b *HitBtc) GetTicker(market string) (ticker Ticker, err error) {
 	return
 }
 
+func (b *HitBtc) GetTickers() (ticker []Ticker, err error) {
+	r, err := b.client.do("GET", "public/ticker", nil, false)
+	if err != nil {
+		return
+	}
+	var response interface{}
+	if err = json.Unmarshal(r, &response); err != nil {
+		return
+	}
+	if err = handleErr(response); err != nil {
+		return
+	}
+	err = json.Unmarshal(r, &ticker)
+	return
+}
+
 // Market
 
 // Account

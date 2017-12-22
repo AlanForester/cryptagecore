@@ -37,7 +37,7 @@ func NewWithCustomTimeout(apiKey, apiSecret string, timeout time.Duration) *Yobi
 	return &Yobit{client}
 }
 
-func (y *Yobit) GetTickers() (map[string]Ticker, error) {
+func (y *Yobit) GetTickers() (map[string]Info, error) {
 	var tickers TickerInfoResponse
 	r, err := y.client.do("GET", "info", "")
 	if err != nil {
@@ -48,6 +48,11 @@ func (y *Yobit) GetTickers() (map[string]Ticker, error) {
 		return tickers.Pairs, err
 	}
 	return tickers.Pairs, nil
+}
+
+func (y *Yobit) GetTicks(ticks string) (string, error) {
+	r, err := y.client.do("GET", "ticker/" + ticks, "")
+	return string(r), err
 }
 
 func (y *Yobit) GetOrderBook(pair string, limit int) (OrderBook, error) {
