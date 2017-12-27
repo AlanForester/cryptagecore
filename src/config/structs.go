@@ -79,12 +79,13 @@ type PairData struct {
 }
 
 type DBPair struct {
-	Id int8 `json:"id" db:"id"`
+	Id int64 `json:"id" db:"id"`
 	BaseKey string `json:"base_key" db:"base_key"`
 	BaseName string `json:"base_name" db:"base_name"`
 	QuoteKey string `json:"quote_key" db:"quote_key"`
 	QuoteName string `json:"quote_name" db:"quote_name"`
 	PairName string `json:"pair_name" db:"pair_name"`
+	Time time.Time `json:"time" db:"time"`
 }
 
 type Summary struct {
@@ -130,6 +131,14 @@ type Exchanges struct {
 	}
 }
 
+type DBExchanges struct {
+	Id string `json:"id" db:"id"`
+	Key string `json:"key" db:"key"`
+	Name string `json:"name" db:"name"`
+	Active bool `json:"active" db:"active"`
+	Time time.Time `json:"time" db:"time"`
+}
+
 type Result struct {
 	Result map[string]Summary `json:"result"`
 }
@@ -162,7 +171,8 @@ type CD struct { // Compare Data
 	Pair string `json:"pair"`
 	DelimPair string `json:"delimPair"`
 	Bid float64 `json:"bid"`
-	Ask float64
+	Ask float64 `json:"ask"`
+	Last string `json:"last"`
 	Volume string `json:"volume"`
 	Pair1 string `json:"pair_1"`
 	Pair2 string `json:"pair_2"`
