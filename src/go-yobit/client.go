@@ -52,11 +52,11 @@ func (c *client) doTimeoutRequest(timer *time.Timer, req *http.Request) (*http.R
 	case r := <-done:
 		return r.resp, r.err
 	case <-timer.C:
-		return nil, errors.New("timeout on reading data from Bittrex API")
+		return nil, errors.New("timeout on reading data from YoBit API")
 	}
 }
 
-// do prepare and process HTTP request to Bittrex API
+// do prepare and process HTTP request to ЁBit API
 func (c *client) do(method string, ressource string, payload string) (response []byte, err error) {
 	connectTimer := time.NewTimer(c.httpTimeout)
 
