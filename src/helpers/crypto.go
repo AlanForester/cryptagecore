@@ -11,14 +11,15 @@ import (
 	"go-hitbtc"
 )
 
-func SaveTickers(db *sqlx.DB, key1 string, key2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
-	keys := strings.Split(key2, "-")
-	if len(keys) == 2 {
-		a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7, $8)", key1, keys[0], keys[1], price, hi, low, t, volume)
+func SaveTickers(db *sqlx.DB, exchange string, pair1 string, pair2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
+	if pair1 != "" && pair2 != "" {
+		a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7, $8)", exchange, pair1, pair2, price, hi, low, t, volume)
 		if e == nil {
 			a.Close()
 		} else {
-			panic(e)
+			//fmt.Println(exchange, pair1, pair2, price, hi, low, t, volume)
+			//panic(e)
+			fmt.Println(e)
 		}
 	}
 }
@@ -28,14 +29,18 @@ func SaveInternal(db *sqlx.DB, asset1 string, asset2 string, asset3 string, perc
 	if e == nil {
 		a.Close()
 	} else {
-		panic(e)
+		//fmt.Println(asset1, asset2, asset3, percent, exchange, time.Now().Format(time.RFC3339))
+		//panic(e)
+		fmt.Println(e)
 	}
 }
 
 func SaveQuery(data string, db *sqlx.DB)  {
 	a, e := db.Query(data)
 	if e != nil {
+		fmt.Println(data)
 		fmt.Println(e)
+		//panic(e)
 	} else {
 		a.Close()
 	}
@@ -45,12 +50,6 @@ func InitSignals(db *sqlx.DB) []config.Signal {
 	signals := []config.Signal{}
 	db.Select(&signals, "SELECT * FROM signals")
 	return signals
-}
-
-func GetPairs(db *sqlx.DB) []config.DBPair {
-	result := make([]config.DBPair, 0)
-	db.Select(&result, "SELECT * FROM pairs")
-	return result
 }
 
 func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, exchange2 string, internal bool)  {
@@ -112,47 +111,23 @@ func GetHitBTC(db *sqlx.DB, hit *hitbtc.HitBtc)  {
 	}
 }
 
-func GetYobit(db *sqlx.DB, yo *yobit.Yobit)  {
-	y, _ := yo.GetTickers()
-	if len(y) > 0 {
-		var tickers [][]string
-		var tempticks []string
-		var i = 0
-		var kk = 1
-		for k := range y {
-			if i >= 50 {
-				tickers = append(tickers, tempticks)
-				tempticks = []string{}
-				i = 0
-			} else {
-				tempticks = append(tempticks, k)
-				i++
-			}
-			kk++
-		}
-		data := Yobit(yo)
-		fmt.Println(data)
-	}
-}
-
 func Yobit(yo *yobit.Yobit) map[string]yobit.Ticker {
 	result := make(map[string]yobit.Ticker)
-	y, _ := yo.GetTickers()
+	y, e := yo.GetTickers()
 	if len(y) > 0 {
 		var tickers [][]string
 		var tempticks []string
 		var i = 0
-		var kk = 1
 		for k := range y {
 			if i >= 50 {
 				tickers = append(tickers, tempticks)
 				tempticks = []string{}
-				i = 0
+				tempticks = append(tempticks, k)
+				i = 1
 			} else {
 				tempticks = append(tempticks, k)
 				i++
 			}
-			kk++
 		}
 
 		var Yochan = make(chan string, 0)
@@ -171,10 +146,12 @@ func Yobit(yo *yobit.Yobit) map[string]yobit.Ticker {
 				case <- tick.C:
 					data := <- Yochan
 					//fmt.Println(data)
-					yostruct := make(map[string]yobit.Ticker)
-					json.Unmarshal([]byte(data), &yostruct)
-					for k, v := range yostruct{
-						result[k] = v
+					if len(data) > 10 {
+						yostruct := make(map[string]yobit.Ticker)
+						json.Unmarshal([]byte(data), &yostruct)
+						for k, v := range yostruct{
+							result[k] = v
+						}
 					}
 					hz++
 					if hz == s1 {
@@ -183,7 +160,10 @@ func Yobit(yo *yobit.Yobit) map[string]yobit.Ticker {
 				}
 			}
 		}()
+	} else {
+		fmt.Println(y, e)
 	}
+	fmt.Println("ЁБит пар:", len(result))
 	return result
 }
 
@@ -194,6 +174,9 @@ func YoCreate(yo *yobit.Yobit, ticks string, yochan chan string) {
 			yochan <- a
 		}()
 	} else {
-		fmt.Println("error", o)
+		fmt.Println("YoCreate error:", o)
+		go func() {
+			yochan <- ""
+		}()
 	}
 }

@@ -51,6 +51,7 @@ func (y *Yobit) GetTickers() (map[string]Info, error) {
 }
 
 func (y *Yobit) GetTicks(ticks string) (string, error) {
+	//fmt.Println("https://yobit.net/api/3/ticker/"+ticks)
 	r, err := y.client.do("GET", "ticker/" + ticks, "")
 	return string(r), err
 }

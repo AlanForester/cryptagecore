@@ -14,16 +14,60 @@ import (
 	"config"
 )
 
-func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair)  {
+func YobitWorker(db *sqlx.DB, yo *yobit.Yobit, pairs2 map[string]string, exchan map[string]string)  {
 	singals := helpers.InitSignals(db)
 
 	maindata := make([]config.CD, 0)
+	services := make([]string, 0)
+	asks := make(map[string]map[string]float64)
 
+	yostart := time.Now()
+	yoba := helpers.Yobit(yo)
+	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
+	ex := "yobit"
+	asks[ex] = make(map[string]float64)
+	for k, v := range yoba {
+		data := config.CD{}
+
+		name := strings.Replace(k, "_", "-", -1)
+		name1 := strings.Replace(name, "-", "", -1)
+		names := strings.Split(name, "-")
+
+		data.Pair1 = names[0]
+		data.Pair2 = names[1]
+
+		data.Bid = v.High
+		data.Ask = v.Low
+		data.Volume = helpers.FloatToString(v.VolCur)
+		data.Pair = name1
+		data.DelimPair = name
+		data.Market = ex
+		data.Last = helpers.FloatToString(v.Last)
+		maindata = append(maindata, data)
+
+		asks[ex][name1] = v.Low
+	}
+	services = append(services, ex)
+
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks)
+}
+
+func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string]string, exchan map[string]string)  {
+	start := time.Now()
+	singals := helpers.InitSignals(db)
+
+	maindata := make([]config.CD, 0)
+	services := make([]string, 0)
+	asks := make(map[string]map[string]float64)
+
+	bitstart := time.Now()
 	bit, eb := b.GetMarketSummaries()
+	fmt.Println("Запрос к БитРекс:", time.Now().Sub(bitstart))
 	if eb != nil {
 		fmt.Println("CMS Битрикс не желает работать:", eb.Error())
 	} else {
 		ex := "bittrex"
+		asks[ex] = make(map[string]float64)
 		for _, v := range bit {
 			data := config.CD{}
 			name := strings.ToLower(v.MarketName)
@@ -41,16 +85,21 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			data.Pair = name1
 			data.DelimPair = name
 			data.Market = ex
+			data.Last = v.Last.String()
 			maindata = append(maindata, data)
-			//go helpers.SaveTickers(db, ex, name, v.Last.String(), v.High.String(), v.Low.String(), time.Now().Format(time.RFC3339), v.Volume.String())
-		}
-	}
 
+			asks[ex][name1] = ask
+		}
+		services = append(services, ex)
+	}
+	polstart := time.Now()
 	pol, ep := p.GetTickers()
+	fmt.Println("Запрос к полоникс:", time.Now().Sub(polstart))
 	if ep != nil {
 		fmt.Println("Полоникс наполонил: ", ep.Error())
 	} else {
 		ex := "poloniex"
+		asks[ex] = make(map[string]float64)
 		for k, v := range pol {
 			data := config.CD{}
 
@@ -69,15 +118,19 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			data.Pair = name1
 			data.DelimPair = name
 			data.Market = ex
+			data.Last = v.Last.String()
 			maindata = append(maindata, data)
 
-			//go helpers.SaveTickers(db, ex, name, v.Last.String(), v.HighestBid.String(), v.LowestAsk.String(), time.Now().Format(time.RFC3339), v.BaseVolume.String())
+			asks[ex][name1] = ask
 		}
+		services = append(services, ex)
 	}
-
+	hitstart := time.Now()
 	a, _ := hit.GetTickers()
+	fmt.Println("Запрос к HitBtc:", time.Now().Sub(hitstart))
 	if len(a) > 0 {
 		ex := "hitbtc"
+		asks[ex] = make(map[string]float64)
 		for _, v := range a {
 			data := config.CD{}
 
@@ -87,64 +140,59 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			data.Pair = v.Symbol
 			data.Pair1, data.Pair2 = helpers.GetPairFromString(v.Symbol, pairs)
 			data.Market = ex
+			data.Last = helpers.FloatToString(v.Last)
 			maindata = append(maindata, data)
+
+			asks[ex][v.Symbol] = v.Ask
 		}
+		services = append(services, ex)
 	}
 
-	if cfg.Yobit {
-		y, _ := yo.GetTickers()
-		if len(y) > 0 {
-			var tickers [][]string
-			var tempticks []string
-			var i = 0
-			var kk = 1
-			for k := range y {
-				if i >= 50 {
-					tickers = append(tickers, tempticks)
-					tempticks = []string{}
-					i = 0
-				} else {
-					tempticks = append(tempticks, k)
-					i++
-				}
-				kk++
-			}
-			yoba := helpers.Yobit(yo)
-
-			ex := "yobit"
-			for k, v := range yoba {
-				data := config.CD{}
-
-				name := strings.Replace(k, "_", "-", -1)
-				name1 := strings.Replace(name, "-", "", -1)
-				names := strings.Split(name, "-")
-
-				data.Pair1 = names[0]
-				data.Pair2 = names[1]
-
-				data.Bid = v.High
-				data.Ask = v.Low
-				data.Volume = helpers.FloatToString(v.VolCur)
-				data.Pair = name1
-				data.DelimPair = name
-				data.Market = ex
-				maindata = append(maindata, data)
-			}
-		}
-	}
-
+	//if cfg.Yobit {
+	//	yostart := time.Now()
+	//	yoba := helpers.Yobit(yo)
+	//	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
+	//	ex := "yobit"
+	//	asks[ex] = make(map[string]float64)
+	//	for k, v := range yoba {
+	//		data := config.CD{}
+	//
+	//		name := strings.Replace(k, "_", "-", -1)
+	//		name1 := strings.Replace(name, "-", "", -1)
+	//		names := strings.Split(name, "-")
+	//
+	//		data.Pair1 = names[0]
+	//		data.Pair2 = names[1]
+	//
+	//		data.Bid = v.High
+	//		data.Ask = v.Low
+	//		data.Volume = helpers.FloatToString(v.VolCur)
+	//		data.Pair = name1
+	//		data.DelimPair = name
+	//		data.Market = ex
+	//		data.Last = helpers.FloatToString(v.Last)
+	//		maindata = append(maindata, data)
+	//
+	//		asks[ex][name1] = v.Low
+	//	}
+	//	services = append(services, ex)
+	//}
 
 	//maindata = helpers.CheckPairs(maindata, pairs)
-	MainWorker(db, maindata, singals)
+	fmt.Println("Итого на запросы:", time.Now().Sub(start))
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks)
 }
 
-func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal)  {
+func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string]string, exchan map[string]string, services []string, asks map[string]map[string]float64)  {
 	if len(data) > 0 {
 		// Внешний арбитраж
 		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES "
 		var sqlStr string
 
+		startex := time.Now()
 		for _,a1 := range data {
+			go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
+
 			for _,a2 := range data {
 				if a1.Market != a2.Market {
 					if a1.Pair == a2.Pair {
@@ -156,50 +204,64 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal)  {
 							summ = (a2.Bid * 100 / a1.Ask) - 100
 						}
 						if summ > 0 {
-							sqlStr += "(get_pair_id('" + a1.Pair1 + "', '" + a1.Pair2 + "'), get_exchange_id('" + a1.Market + "'), get_exchange_id('" + a2.Market + "'), " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+							sqlStr += "(" + pairs2[a1.DelimPair] + ", " + exchan[a1.Market] + ", " + exchan[a2.Market] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
 							go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
 						}
 					}
 				}
 			}
 		}
-		sqlStr = startSql + sqlStr
-		sqlStr = sqlStr[0:len(sqlStr)-1]
-		sqlStr = strings.TrimSuffix(sqlStr, ",")
-		helpers.SaveQuery(sqlStr, db)
+		if len(sqlStr) > 0 {
+			fmt.Println("Внешний-1", time.Now().Sub(startex))
+			sqlStr = startSql + sqlStr
+			sqlStr = sqlStr[0:len(sqlStr)-1]
+			sqlStr = strings.TrimSuffix(sqlStr, ",")
+			go helpers.SaveQuery(sqlStr, db)
+			fmt.Println("Внешний-2", time.Now().Sub(startex))
+		}
 
 		// Внутренний арбитраж
-		for _, d := range data {
-			for _, d1 := range data {
-				if d.Market == d1.Market {
-					if (d.Pair2 == d1.Pair1 && d1.Pair1 != d.Pair1) || (d.Pair2 == d1.Pair2 && d1.Pair2 != d.Pair1) {
-						var val1 string
-						var val2 string
-						if d.Pair2 == d1.Pair1 && d1.Pair1 != d.Pair1 {
-							val1 = d1.Pair1
-							val2 = d1.Pair2
-						} else if d.Pair2 == d1.Pair2 && d1.Pair2 != d.Pair1 {
-							val1 = d1.Pair2
-							val2 = d1.Pair1
-						}
+		start := time.Now()
+		var ini = 0
 
-						for _, d2 := range data {
-							if d1.Market == d2.Market {
-								if (val2 == d2.Pair2 && d2.Pair1 == d.Pair1) || (val2 == d2.Pair1 && d2.Pair2 == d.Pair1) {
-									summ := Round((d1.Ask / d2.Ask) / 100, 2)
-									cpa := summ * 0.25 / 100
+		operate := make(map[string][][]string)
+		for _, s := range services {
+			for _, d := range data {
+				arr := []string{d.Pair1, d.Pair2}
+				operate[s] = append(operate[s], arr)
+			}
+		}
 
-									if summ > 0 {
-										helpers.SaveInternal(db, d.Pair1, val1, val2, summ - cpa, d.Market)
-										helpers.WorkSignals(db, signals, d.Pair1, val1, val2, summ - cpa, d.Market, "", true) // Внутренний
-									}
-								}
-							}
-						}
-					}
+		operate2 := make(map[string][][]string)
+		for _, d1 := range data {
+			for _, v := range operate[d1.Market] {
+				if v[1] == d1.Pair1 && d1.Pair1 != v[0] {
+					operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair1, d1.Pair2, v[0]})
+				} else if v[1] == d1.Pair2 && d1.Pair2 != v[0] {
+					operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair2, d1.Pair1, v[0]})
 				}
 			}
 		}
+		for _, d2 := range data {
+			//go func() {
+				for _, d0 := range operate2[d2.Market] {
+					if len(d0) > 2 && d0[0] != "" && d0[1] != "" && d0[2] != "" {
+						if (d0[1] == d2.Pair2 && d2.Pair1 == d0[2]) || (d0[1] == d2.Pair1 && d2.Pair2 == d0[2]) {
+							summ := Round(asks[d2.Market][d0[0] + d0[1]] / d2.Ask, 2)
+							cpa := summ * 0.25 / 100
+							if summ > 0 {
+								ini++
+								helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
+								helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true) // Внутренний
+							}
+							break
+						}
+					}
+				}
+			//}()
+		}
+
+		fmt.Println("Внутренний:", time.Now().Sub(start))
 	}
 }
 

@@ -88,6 +88,14 @@ type DBPair struct {
 	Time time.Time `json:"time" db:"time"`
 }
 
+type DBAssets struct {
+	Id string `json:"id" db:"id"`
+	Symbol string `json:"symbol" db:"symbol"`
+	Name string `json:"name" db:"name"`
+	Time time.Time `json:"time" db:"time"`
+	Course float64 `json:"course" db:"course"`
+}
+
 type Summary struct {
 	Price struct {
 		Last float64 `json:"last"`
