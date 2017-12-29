@@ -6,6 +6,12 @@
     "user": "postgres",
     "database": "bc"
   },
+  "MQ": {
+    "login": "guest",
+    "password": "guest",
+    "host": "10.0.1.1",
+    "port": "5672"
+  },
   "Redis": {
     "Database": 1,
     "Host": "127.0.0.1",
@@ -13,5 +19,6 @@
   },
   "jwt": "megahash",
   "port": "8089",
-  "yobit": false
+  "yobit": false,
+  "mqmode": true
 }

@@ -12,9 +12,10 @@ import (
 	"go-yobit"
 	"go-hitbtc"
 	"config"
+	"amqp"
 )
 
-func YobitWorker(db *sqlx.DB, yo *yobit.Yobit, pairs2 map[string]string, exchan map[string]string)  {
+func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
 	singals := helpers.InitSignals(db)
 
 	maindata := make([]config.CD, 0)
@@ -49,10 +50,10 @@ func YobitWorker(db *sqlx.DB, yo *yobit.Yobit, pairs2 map[string]string, exchan 
 	}
 	services = append(services, ex)
 
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
 }
 
-func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string]string, exchan map[string]string)  {
+func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
 	start := time.Now()
 	singals := helpers.InitSignals(db)
 
@@ -180,18 +181,32 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 
 	//maindata = helpers.CheckPairs(maindata, pairs)
 	fmt.Println("Итого на запросы:", time.Now().Sub(start))
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
 }
 
-func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string]string, exchan map[string]string, services []string, asks map[string]map[string]float64)  {
+func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings)  {
 	if len(data) > 0 {
 		// Внешний арбитраж
 		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES "
 		var sqlStr string
 
 		startex := time.Now()
+		if cfg.Mqmode {
+			mq = helpers.ChangeMQMode(mq, "external")
+		}
 		for _,a1 := range data {
-			go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
+			if cfg.Mqmode {
+				output := make(map[string]interface{})
+				output["market"] = exchan[a1.Market]
+				output["asset1"] = assets[a1.Pair1]
+				output["asset2"] = assets[a1.Pair2]
+				output["last"] = a1.Last
+				output["bid"] = a1.Bid
+				output["ask"] = a1.Ask
+				helpers.AddMQ("external", a1.Market + "-" + a1.Pair1  + "-" + a1.Pair2, mq, output)
+			} else {
+				go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
+			}
 
 			for _,a2 := range data {
 				if a1.Market != a2.Market {
@@ -204,7 +219,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 							summ = (a2.Bid * 100 / a1.Ask) - 100
 						}
 						if summ > 0 {
-							sqlStr += "(" + pairs2[a1.DelimPair] + ", " + exchan[a1.Market] + ", " + exchan[a2.Market] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+							sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
 							go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
 						}
 					}
@@ -242,23 +257,36 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 				}
 			}
 		}
+		if cfg.Mqmode {
+			mq = helpers.ChangeMQMode(mq, "internal")
+		}
 		for _, d2 := range data {
-			//go func() {
+			go func() {
 				for _, d0 := range operate2[d2.Market] {
-					if len(d0) > 2 && d0[0] != "" && d0[1] != "" && d0[2] != "" {
+					if len(d0) > 2 && d0[0] != "" && d0[1] != "" && d0[2] != "" && d2.Pair2 != "" && d2.Pair1 != "" {
 						if (d0[1] == d2.Pair2 && d2.Pair1 == d0[2]) || (d0[1] == d2.Pair1 && d2.Pair2 == d0[2]) {
 							summ := Round(asks[d2.Market][d0[0] + d0[1]] / d2.Ask, 2)
 							cpa := summ * 0.25 / 100
 							if summ > 0 {
 								ini++
-								helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
-								helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true) // Внутренний
+								if cfg.Mqmode {
+									output := make(map[string]interface{})
+									output["market"] = exchan[d2.Market]
+									output["asset1"] = assets[d0[2]]
+									output["asset2"] = assets[d0[0]]
+									output["asset3"] = assets[d0[1]]
+									output["percent"] = summ - cpa
+									helpers.AddMQ("internal", d2.Market + "-" + d0[2]  + "-" + d0[0] + "-" + d0[1], mq, output)
+								} else {
+									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
+								}
+								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true) // Внутренний
 							}
 							break
 						}
 					}
 				}
-			//}()
+			}()
 		}
 
 		fmt.Println("Внутренний:", time.Now().Sub(start))

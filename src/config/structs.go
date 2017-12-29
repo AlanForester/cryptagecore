@@ -10,12 +10,19 @@ type Settings struct {
 		User string `json:"user"`
 		Database string `json:"database"`
 	}
+	MQ struct{
+		Login string `json:"login"`
+		Password string `json:"password"`
+		Host string `json:"host"`
+		Port string `json:"port"`
+	} `json:"mq"`
 	Redis   struct {
 		Password string  `json:"Password" bson:"Password"`
 		Database int `json:"Database" bson:"Database"`
 		Host     string  `json:"Host" bson:"Host"`
 		Port     string  `json:"Port" bson:"Port"`
 	}
+	Mqmode bool `json:"mqmode"`
 	Jwt string `json:"jwt"`
 	Port string `json:"port"`
 	Yobit bool `json:"yobit"`

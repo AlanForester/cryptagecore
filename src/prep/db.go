@@ -11,6 +11,8 @@ import (
 	"redis.v4"
 	_ "database/sql"
 	"sqlx"
+	"amqp"
+	"log"
 )
 
 // Он, главный. Инфа сотка
@@ -21,6 +23,14 @@ func InitDB(cfg config.Settings) (*sqlx.DB, *redis.Client) {
 	//r := RedisOn(cfg)
 
 	return sqli, nil
+}
+
+func InitMQ(cfg config.Settings) *amqp.Connection {
+	conn, err := amqp.Dial("amqp://" + cfg.MQ.Login + ":" + cfg.MQ.Password + "@" + cfg.MQ.Host + ":" + cfg.MQ.Port + "/")
+	if err != nil {
+		log.Fatalf("connection.open: %s", err)
+	}
+	return conn
 }
 
 func RedisOn(config config.Settings) *redis.Client {
@@ -37,8 +47,8 @@ func RedisOn(config config.Settings) *redis.Client {
 func startPG(cfg config.Settings) *sqlx.DB {
 	// Взлетаем
 	db, err := sqlx.Open("postgres", "postgres://" + cfg.Postgre.User + ":" + cfg.Postgre.Passw + "@" + cfg.Postgre.Host + ":" + cfg.Postgre.Port + "/" + cfg.Postgre.Database + "?sslmode=disable")
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(1990)
+	db.SetMaxIdleConns(500)
+	db.SetMaxOpenConns(500)
 
 	if err != nil{
 		panic("m=GetPool,msg=connection has failed" + err.Error())

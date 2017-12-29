@@ -19,7 +19,7 @@ func SaveTickers(db *sqlx.DB, exchange string, pair1 string, pair2 string, price
 		} else {
 			//fmt.Println(exchange, pair1, pair2, price, hi, low, t, volume)
 			//panic(e)
-			fmt.Println(e)
+			fmt.Println("0", e)
 		}
 	}
 }
@@ -31,7 +31,7 @@ func SaveInternal(db *sqlx.DB, asset1 string, asset2 string, asset3 string, perc
 	} else {
 		//fmt.Println(asset1, asset2, asset3, percent, exchange, time.Now().Format(time.RFC3339))
 		//panic(e)
-		fmt.Println(e)
+		fmt.Println("1", e)
 	}
 }
 
@@ -39,7 +39,7 @@ func SaveQuery(data string, db *sqlx.DB)  {
 	a, e := db.Query(data)
 	if e != nil {
 		fmt.Println(data)
-		fmt.Println(e)
+		fmt.Println("2", e)
 		//panic(e)
 	} else {
 		a.Close()
