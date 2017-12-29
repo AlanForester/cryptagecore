@@ -15,13 +15,16 @@ import (
 	"amqp"
 )
 
+// Обработчик ЁБита
 func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
+	// Стартуем сигналы
 	singals := helpers.InitSignals(db)
 
-	maindata := make([]config.CD, 0)
-	services := make([]string, 0)
-	asks := make(map[string]map[string]float64)
+	maindata := make([]config.CD, 0) // Главный массив объектов с данными
+	services := make([]string, 0) // Массив строк с биржами
+	asks := make(map[string]map[string]float64) // Массив ASK'ов по биржам
 
+	// Обрабатываем
 	yostart := time.Now()
 	yoba := helpers.Yobit(yo)
 	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
@@ -30,10 +33,12 @@ func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[s
 	for k, v := range yoba {
 		data := config.CD{}
 
+		// Стандартизируем формат (ибо каждый называет пары как хочет)
 		name := strings.Replace(k, "_", "-", -1)
 		name1 := strings.Replace(name, "-", "", -1)
 		names := strings.Split(name, "-")
 
+		// Заполняем
 		data.Pair1 = names[0]
 		data.Pair2 = names[1]
 
@@ -44,23 +49,30 @@ func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[s
 		data.DelimPair = name
 		data.Market = ex
 		data.Last = helpers.FloatToString(v.Last)
+
+		// Добавляем
 		maindata = append(maindata, data)
 
 		asks[ex][name1] = v.Low
 	}
 	services = append(services, ex)
 
+	// Главный обработчик
 	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
 }
 
+// Обработчик адекватных бирж
 func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
 	start := time.Now()
+
+	// Стартуем сигналы
 	singals := helpers.InitSignals(db)
 
-	maindata := make([]config.CD, 0)
-	services := make([]string, 0)
-	asks := make(map[string]map[string]float64)
+	maindata := make([]config.CD, 0) // Главный массив объектов с данными
+	services := make([]string, 0) // Массив строк с биржами
+	asks := make(map[string]map[string]float64) // Массив ASK'ов по биржам
 
+	// Обработка и стандартизация Bittrex
 	bitstart := time.Now()
 	bit, eb := b.GetMarketSummaries()
 	fmt.Println("Запрос к БитРекс:", time.Now().Sub(bitstart))
@@ -71,10 +83,13 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 		asks[ex] = make(map[string]float64)
 		for _, v := range bit {
 			data := config.CD{}
+
+			// Стандартизируем формат (ибо каждый называет пары как хочет)
 			name := strings.ToLower(v.MarketName)
 			name1 := strings.Replace(name, "-", "", -1)
-
 			names := strings.Split(name, "-")
+
+			// Заполняем
 			data.Pair1 = names[0]
 			data.Pair2 = names[1]
 
@@ -87,12 +102,16 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			data.DelimPair = name
 			data.Market = ex
 			data.Last = v.Last.String()
+
+			// Добавляем
 			maindata = append(maindata, data)
 
 			asks[ex][name1] = ask
 		}
 		services = append(services, ex)
 	}
+
+	// Обработка Poloniex
 	polstart := time.Now()
 	pol, ep := p.GetTickers()
 	fmt.Println("Запрос к полоникс:", time.Now().Sub(polstart))
@@ -104,10 +123,12 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 		for k, v := range pol {
 			data := config.CD{}
 
+			// Стандартизируем формат (ибо каждый называет пары как хочет)
 			name := strings.ToLower(strings.Replace(k, "_", "-", -1))
 			name1 := strings.Replace(name, "-", "", -1)
-
 			names := strings.Split(name, "-")
+
+			// Заполняем
 			data.Pair1 = names[0]
 			data.Pair2 = names[1]
 
@@ -120,12 +141,16 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			data.DelimPair = name
 			data.Market = ex
 			data.Last = v.Last.String()
+
+			// Добавляем
 			maindata = append(maindata, data)
 
 			asks[ex][name1] = ask
 		}
 		services = append(services, ex)
 	}
+
+	// Обработка HitBtc
 	hitstart := time.Now()
 	a, _ := hit.GetTickers()
 	fmt.Println("Запрос к HitBtc:", time.Now().Sub(hitstart))
@@ -135,21 +160,24 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 		for _, v := range a {
 			data := config.CD{}
 
+			// Заполняем
 			data.Bid = v.Bid
 			data.Ask = v.Ask
 			data.Volume = helpers.FloatToString(v.Volume)
-			data.Pair = v.Symbol
-			data.Pair1, data.Pair2 = helpers.GetPairFromString(v.Symbol, pairs)
+			data.Pair = strings.ToLower(v.Symbol)
+			data.Pair1, data.Pair2 = helpers.GetPairFromString(data.Pair, pairs)
 			data.Market = ex
 			data.Last = helpers.FloatToString(v.Last)
-			maindata = append(maindata, data)
 
+			// Добавляем
+			maindata = append(maindata, data)
 			asks[ex][v.Symbol] = v.Ask
 		}
 		services = append(services, ex)
 	}
 
-	//if cfg.Yobit {
+	// Ёбит успешно поживает в отдельной функции. Раскоментирование этого сделает данные более верными, но тормозить будет не только ёбит
+	//if cfg.Yobit { // Запуск по требованию
 	//	yostart := time.Now()
 	//	yoba := helpers.Yobit(yo)
 	//	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
@@ -158,10 +186,12 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	//	for k, v := range yoba {
 	//		data := config.CD{}
 	//
+	//		// Стандартизируем формат (ибо каждый называет пары как хочет)
 	//		name := strings.Replace(k, "_", "-", -1)
 	//		name1 := strings.Replace(name, "-", "", -1)
 	//		names := strings.Split(name, "-")
 	//
+	//		// Заполняем
 	//		data.Pair1 = names[0]
 	//		data.Pair2 = names[1]
 	//
@@ -172,6 +202,8 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	//		data.DelimPair = name
 	//		data.Market = ex
 	//		data.Last = helpers.FloatToString(v.Last)
+	//
+	//		// Добавляем
 	//		maindata = append(maindata, data)
 	//
 	//		asks[ex][name1] = v.Low
@@ -184,30 +216,37 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
 }
 
+// Главный обработчик и заносчик данных в базу
 func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings)  {
-	if len(data) > 0 {
+	if len(data) > 0 { // Нет данных - нет работы
 		// Внешний арбитраж
-		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES "
+		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES " // Строим строку
 		var sqlStr string
 
 		startex := time.Now()
-		if cfg.Mqmode {
-			mq = helpers.ChangeMQMode(mq, "external")
-		}
+
+		// КроликMQ. Включить, если нужно посылать в канал
+		//if cfg.Mqmode {
+		//	mq = helpers.ChangeMQMode(mq, "external")
+		//}
+
 		for _,a1 := range data {
-			if cfg.Mqmode {
+			if cfg.Mqmode { // Режим работы с кроликом
+				// Строим карту
 				output := make(map[string]interface{})
-				output["market"] = exchan[a1.Market]
+				output["market"] = exchan[a1.Market][1]
 				output["asset1"] = assets[a1.Pair1]
 				output["asset2"] = assets[a1.Pair2]
 				output["last"] = a1.Last
 				output["bid"] = a1.Bid
 				output["ask"] = a1.Ask
+				// Суем в кролика
 				helpers.AddMQ("external", a1.Market + "-" + a1.Pair1  + "-" + a1.Pair2, mq, output)
-			} else {
+			} else { // ПГ режим
 				go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
 			}
 
+			// Переборчик
 			for _,a2 := range data {
 				if a1.Market != a2.Market {
 					if a1.Pair == a2.Pair {
@@ -220,25 +259,27 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 						}
 						if summ > 0 {
 							sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+							// Обработка сигналов
 							go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
 						}
 					}
 				}
 			}
 		}
-		if len(sqlStr) > 0 {
+		if len(sqlStr) > 0 { // Если что-то есть - значит что-нито делаем
 			fmt.Println("Внешний-1", time.Now().Sub(startex))
-			sqlStr = startSql + sqlStr
-			sqlStr = sqlStr[0:len(sqlStr)-1]
-			sqlStr = strings.TrimSuffix(sqlStr, ",")
-			go helpers.SaveQuery(sqlStr, db)
+			sqlStr = startSql + sqlStr // Собираем строку
+			sqlStr = sqlStr[0:len(sqlStr)-1] // Удаляем аппендицит
+			sqlStr = strings.TrimSuffix(sqlStr, ",") // Удаляем аппендицит... еще раз
+			go helpers.SaveQuery(sqlStr, db) // Сохраняем
 			fmt.Println("Внешний-2", time.Now().Sub(startex))
 		}
 
 		// Внутренний арбитраж
 		start := time.Now()
-		var ini = 0
+		var ini = 0 // Счетчик
 
+		// Собираем первый массив с только необходимыми данными
 		operate := make(map[string][][]string)
 		for _, s := range services {
 			for _, d := range data {
@@ -247,6 +288,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 			}
 		}
 
+		// Проверяем первую пару и исходный вариант, собираем второй массив
 		operate2 := make(map[string][][]string)
 		for _, d1 := range data {
 			for _, v := range operate[d1.Market] {
@@ -257,27 +299,29 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 				}
 			}
 		}
-		if cfg.Mqmode {
-			mq = helpers.ChangeMQMode(mq, "internal")
-		}
+		// КроликMQ. Включить, если нужно посылать в канал
+		//if cfg.Mqmode {
+		//	mq = helpers.ChangeMQMode(mq, "internal")
+		//}
+		// Сравниваем третью пару с второй и первым элементом. Считаем денюжки и сохраняем
 		for _, d2 := range data {
-			go func() {
+			go func() { // Разпараллеливаем
 				for _, d0 := range operate2[d2.Market] {
 					if len(d0) > 2 && d0[0] != "" && d0[1] != "" && d0[2] != "" && d2.Pair2 != "" && d2.Pair1 != "" {
 						if (d0[1] == d2.Pair2 && d2.Pair1 == d0[2]) || (d0[1] == d2.Pair1 && d2.Pair2 == d0[2]) {
 							summ := Round(asks[d2.Market][d0[0] + d0[1]] / d2.Ask, 2)
 							cpa := summ * 0.25 / 100
 							if summ > 0 {
-								ini++
-								if cfg.Mqmode {
+								if cfg.Mqmode { // Режим работы с КроликMQ
 									output := make(map[string]interface{})
-									output["market"] = exchan[d2.Market]
+									output["market"] = exchan[d2.Market][1]
 									output["asset1"] = assets[d0[2]]
 									output["asset2"] = assets[d0[0]]
 									output["asset3"] = assets[d0[1]]
 									output["percent"] = summ - cpa
 									helpers.AddMQ("internal", d2.Market + "-" + d0[2]  + "-" + d0[0] + "-" + d0[1], mq, output)
-								} else {
+									ini++
+								} else { // Режим работы с ПГ
 									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
 								}
 								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true) // Внутренний
@@ -293,6 +337,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 	}
 }
 
+// Округляет плавающее число до prec знаков
 func Round(x float64, prec int) float64 {
 	var rounder float64
 	pow := math.Pow(10, float64(prec))

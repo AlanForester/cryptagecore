@@ -11,6 +11,7 @@ import (
 	"go-hitbtc"
 )
 
+// Сохранение исходных данных от бирж
 func SaveTickers(db *sqlx.DB, exchange string, pair1 string, pair2 string, price string, hi string, low string, t string, volume string) { // exch, pair, price, ask, bid, time
 	if pair1 != "" && pair2 != "" {
 		a, e := db.Query("SELECT save_tikers($1, $2, $3, $4, $5, $6, $7, $8)", exchange, pair1, pair2, price, hi, low, t, volume)
@@ -24,6 +25,7 @@ func SaveTickers(db *sqlx.DB, exchange string, pair1 string, pair2 string, price
 	}
 }
 
+// Сохранение внутреннего арбитража в ПГ
 func SaveInternal(db *sqlx.DB, asset1 string, asset2 string, asset3 string, percent float64, exchange string)  {
 	a, e := db.Query("SELECT save_internal($1, $2, $3, $4, $5, $6)", asset1, asset2, asset3, percent, exchange, time.Now().Format(time.RFC3339))
 	if e == nil {
@@ -35,6 +37,7 @@ func SaveInternal(db *sqlx.DB, asset1 string, asset2 string, asset3 string, perc
 	}
 }
 
+// Сохранение чегоугодно/внешнего арбитража в ПГ
 func SaveQuery(data string, db *sqlx.DB)  {
 	a, e := db.Query(data)
 	if e != nil {
@@ -46,12 +49,14 @@ func SaveQuery(data string, db *sqlx.DB)  {
 	}
 }
 
+// Подгрузка сигналов из базы
 func InitSignals(db *sqlx.DB) []config.Signal {
 	signals := []config.Signal{}
 	db.Select(&signals, "SELECT * FROM signals")
 	return signals
 }
 
+// Обработчик сигналов
 func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, exchange2 string, internal bool)  {
 	if len(signals) > 0 {
 		for _, s := range signals {
@@ -102,6 +107,7 @@ func saveSignalsEx(db *sqlx.DB, asset1 string, asset2 string, percent float64, e
 	}
 }
 
+// Получатель данных из HitBTC
 func GetHitBTC(db *sqlx.DB, hit *hitbtc.HitBtc)  {
 	a, _ := hit.GetTickers()
 	if len(a) > 0 {
@@ -111,6 +117,7 @@ func GetHitBTC(db *sqlx.DB, hit *hitbtc.HitBtc)  {
 	}
 }
 
+// Обработчик Ёбита. Гарантии и обмену не подлежит
 func Yobit(yo *yobit.Yobit) map[string]yobit.Ticker {
 	result := make(map[string]yobit.Ticker)
 	y, e := yo.GetTickers()
@@ -167,6 +174,7 @@ func Yobit(yo *yobit.Yobit) map[string]yobit.Ticker {
 	return result
 }
 
+// Ёбит, получение данных по строке пар
 func YoCreate(yo *yobit.Yobit, ticks string, yochan chan string) {
 	a, o := yo.GetTicks(ticks)
 	if o == nil {

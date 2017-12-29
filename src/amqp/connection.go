@@ -23,7 +23,7 @@ const (
 
 	defaultHeartbeat         = 10 * time.Second
 	defaultConnectionTimeout = 30 * time.Second
-	defaultProduct           = "https://github.com/streadway/amqp"
+	defaultProduct           = "GoMQ"
 	defaultVersion           = "β"
 	defaultChannelMax        = maxChannelMax
 	defaultLocale            = "en_US"

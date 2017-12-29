@@ -10,14 +10,15 @@ import (
 	"go-hitbtc"
 )
 
-type AStruct struct {
+type AStruct struct { // DEPRECATED
 	Id string `json:"id"`
 	Name string `json:"name"`
 	Symbol string `json:"symbol"`
 	Price string `json:"price_btc" bson:"price_btc"`
 }
 
-func Assets(db *sqlx.DB) {
+// Воруем данные с одного из сервисов для получения ассетов
+func Assets(db *sqlx.DB) { // DEPRECATED
 	data := []AStruct{}
 	r, err := http.Get("https://api.coinmarketcap.com/v1/ticker/?limit=0")
 	if err == nil {
@@ -37,7 +38,8 @@ func Assets(db *sqlx.DB) {
 		}
 	}
 }
-func HitAssets(db *sqlx.DB, hit *hitbtc.HitBtc) {
+
+func HitAssets(db *sqlx.DB, hit *hitbtc.HitBtc) { // DEPRECATED
 	cur, _ := hit.GetCurrencies()
 	for _, v := range cur {
 		a, e := db.Query("SELECT set_asset($1, $2, $3, $4)", strings.ToLower(v.Id), v.FullName, time.Now().Format(time.RFC3339), 0)

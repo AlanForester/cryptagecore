@@ -14,6 +14,7 @@ import (
 	"go-poloniex"
 	"go-bittrex"
 	"go-hitbtc"
+	"amqp"
 )
 
 func main() {
@@ -23,10 +24,15 @@ func main() {
 	// Делаем коннекты с базой
 	sqli, _ := prep.InitDB(cfg)
 
-	mq := prep.InitMQ(cfg)
-	c, err := mq.Channel()
-	if err != nil {
-		log.Fatalf("channel.open: %s", err)
+	// Подключаемся к кроликMQ
+	var err error
+	var c *amqp.Channel
+	if cfg.Mqmode {
+		mq := prep.InitMQ(cfg)
+		c, err = mq.Channel()
+		if err != nil {
+			log.Fatalf("channel.open: %s", err)
+		}
 	}
 
 	// Делаем коннекты к биржам
@@ -35,20 +41,22 @@ func main() {
 	yo := yobit.New("", "")
 	hit := hitbtc.New("", "")
 
-	//helpers.ControlPairs(sqli, hit)
+	// Вытаскиваем полезные данные из ПГ
 	pairs, pairs2 := helpers.GetPairs(sqli)
 	_, assets := helpers.GetAssets(sqli)
 	exchan := helpers.PrepareEx(sqli)
+	//helpers.ControlPairs(sqli, hit)
 	//daemons.Assets(sqli)
 	//daemons.HitAssets(sqli, hit)
 
+	// Кусочек для тестов без интервала
 	//startt := time.Now()
 	//daemons.Worker(cfg, sqli, bitt, polon, yo, hit, pairs, pairs2, exchan, assets, c)
 	//fmt.Println("Весь проход", time.Now().Sub(startt))
 	//daemons.YobitWorker(sqli, cfg, yo,pairs2,exchan, assets, c)
 
-	tickers := time.NewTicker(2 * time.Second) // Вызываем тикер. Он же является каналом
-	ytickers := time.NewTicker(2 * time.Second) // Вызываем тикер. Он же является каналом
+	tickers := time.NewTicker(2 * time.Second) // Интервал для адекватных бирж
+	ytickers := time.NewTicker(6666666666 * time.Second) // Интервал для Ёбита
 	go func() {
 		for {
 			select {
