@@ -230,6 +230,8 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 		//	mq = helpers.ChangeMQMode(mq, "external")
 		//}
 
+		var saveZone []string
+
 		for _,a1 := range data {
 			if cfg.Mqmode { // Режим работы с кроликом
 				// Строим карту
@@ -258,9 +260,19 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 							summ = (a2.Bid * 100 / a1.Ask) - 100
 						}
 						if summ > 0 {
-							sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
-							// Обработка сигналов
-							go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
+							var issetsz bool
+							for _, sz := range saveZone {
+								if sz == a2.Market + a1.Pair {
+									issetsz = true
+									break
+								}
+							}
+							if issetsz == false {
+								saveZone = append(saveZone, a1.Market + a1.Pair)
+								sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+								// Обработка сигналов
+								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
+							}
 						}
 					}
 				}
