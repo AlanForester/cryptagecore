@@ -36,8 +36,8 @@ func main() {
 	}
 
 	// Делаем коннекты к биржам
-	polon := poloniex.New("CNVUTAVQ-YGE5S5HN-0FA8BA7U-QQC2MRAP", "abec87d8ba68ed29893927e770879e8291003f5cfc3cf9cf3ae6bdcfd2c293f8f2f43c84b5d966d668c742165df71fc8207e7a0eed1e8052e83b5195b4775792")
-	bitt := bittrex.New("88e548ba9f424c5bbd6706555aa69109", "b1c0bf1aa947490c8a5a1c9a20ae2188")
+	polon := poloniex.New(cfg.Api.Poloniex.Api, cfg.Api.Poloniex.Key)
+	bitt := bittrex.New(cfg.Api.Bittrex.Api, cfg.Api.Bittrex.Key)
 	yo := yobit.New("", "")
 	hit := hitbtc.New("", "")
 

@@ -58,7 +58,7 @@ func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[s
 	services = append(services, ex)
 
 	// Главный обработчик
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg, nil, nil, yo, nil)
 }
 
 // Обработчик адекватных бирж
@@ -213,11 +213,11 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 
 	//maindata = helpers.CheckPairs(maindata, pairs)
 	fmt.Println("Итого на запросы:", time.Now().Sub(start))
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg, b, p, yo, hit)
 }
 
 // Главный обработчик и заносчик данных в базу
-func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings)  {
+func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc)  {
 	if len(data) > 0 { // Нет данных - нет работы
 		// Внешний арбитраж
 		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES " // Строим строку
@@ -271,7 +271,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 								saveZone = append(saveZone, a1.Market + a1.Pair)
 								sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
 								// Обработка сигналов
-								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false) // Внешний
+								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false, cfg, b, p, yo, hit) // Внешний
 							}
 						}
 					}
@@ -336,7 +336,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 								} else { // Режим работы с ПГ
 									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
 								}
-								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true) // Внутренний
+								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true, cfg, b, p, yo, hit) // Внутренний
 							}
 							break
 						}

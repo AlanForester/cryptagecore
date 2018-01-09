@@ -23,6 +23,24 @@ type Settings struct {
 		Host     string  `json:"Host" bson:"Host"`
 		Port     string  `json:"Port" bson:"Port"`
 	}
+	Api struct {
+		Bittrex struct {
+			Api string `json:"api"`
+			Key string `json:"key"`
+		} `json:"bittrex"`
+		Poloniex struct {
+			Api string `json:"api"`
+			Key string `json:"key"`
+		} `json:"poloniex"`
+		Hitbtc struct {
+			Api string `json:"api"`
+			Key string `json:"key"`
+		} `json:"hitbtc"`
+		YoBit struct {
+			Api string `json:"api"`
+			Key string `json:"key"`
+		} `json:"yobit"`
+	} `json:"api"`
 	Mqmode bool `json:"mqmode"`
 	Jwt string `json:"jwt"`
 	Port string `json:"port"`
@@ -98,4 +116,25 @@ type CD struct { // Compare Data
 	Volume string `json:"volume"`
 	Pair1 string `json:"pair_1"`
 	Pair2 string `json:"pair_2"`
+}
+
+type Transaction struct { // внутр.
+	Market string `json:"market"`
+	Asset1 string `json:"asset1"`
+	Asset2 string `json:"asset2"`
+	Bid float64 `json:"bid"` // Первого
+	Ask float64 `json:"ask"` // Ко второму
+	Volume1 float64 `json:"volume1"` // Фактически объем (изначально установленный в роботе)
+	Volume2 float64 `json:"volume2"` // Получаемая сумма
+	Data time.Time `json:"data"`
+	Success bool `json:"success"`
+	Reason string `json:"reason"`
+	UUid string `json:"uuid"`
+}
+
+type DBRobot struct {
+	Id int64 `json:"id" db:"id"`
+	Signal int64 `json:"signal" db:"signal"` // Ссылка на сигнал
+	Summ float64 `json:"summ" db:"summ"` // Сумма
+	Safe int64 `json:"safe" db:"safe"` // Страховое плечо
 }
