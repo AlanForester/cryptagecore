@@ -19,6 +19,8 @@ import (
 func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
 	// Стартуем сигналы
 	singals := helpers.InitSignals(db)
+	// И роботов
+	//robots := helpers.InitRobots(db)
 
 	maindata := make([]config.CD, 0) // Главный массив объектов с данными
 	services := make([]string, 0) // Массив строк с биржами
@@ -271,7 +273,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 								saveZone = append(saveZone, a1.Market + a1.Pair)
 								sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
 								// Обработка сигналов
-								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false, cfg, b, p, yo, hit) // Внешний
+								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false, cfg, b, p, yo, hit, a2.Ask, 0) // Внешний
 							}
 						}
 					}
@@ -336,7 +338,7 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 								} else { // Режим работы с ПГ
 									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
 								}
-								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true, cfg, b, p, yo, hit) // Внутренний
+								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true, cfg, b, p, yo, hit, asks[d2.Market][d0[0] + d0[1]], d2.Ask ) // Внутренний
 							}
 							break
 						}

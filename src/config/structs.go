@@ -138,3 +138,17 @@ type DBRobot struct {
 	Summ float64 `json:"summ" db:"summ"` // Сумма
 	Safe int64 `json:"safe" db:"safe"` // Страховое плечо
 }
+
+
+type DBRobot2 struct {
+	Id int64 `json:"id" db:"id"`
+	Exchange1 string `json:"exchange1" db:"exchange1"`
+	Exchange2 string `json:"exchange2" db:"exchange2"`
+	Asset1 string `json:"asset1" db:"asset1"`
+	Asset2 string `json:"asset2" db:"asset2"`
+	Asset3 string `json:"asset3" db:"asset3"`
+	Data1 int `json:"data1" db:"data1"` // 1 - расхождение на больше внешний, 2 - расх. на меньше внешний, 3 - расх. на больше внутрн 4 - ...
+	Data2 float64 `json:"data2" db:"data2"`
+	Summ float64 `json:"summ" db:"summ"` // Сумма
+	Safe int64 `json:"safe" db:"safe"` // Страховое плечо
+}

@@ -58,8 +58,15 @@ func InitSignals(db *sqlx.DB) []config.Signal {
 	return signals
 }
 
+// Подгрузка роботов
+func InitRobots(db *sqlx.DB) []config.DBRobot2 {
+	robots := []config.DBRobot2{}
+	db.Select(&robots, "SELECT robots.id as id, summ, safe, exchange1, exchange2, asset1, asset2, asset3, data1, data2 FROM robots LEFT JOIN signals ON(robots.signal=signals.id)")
+	return robots
+}
+
 // Обработчик сигналов
-func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, exchange2 string, internal bool, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc)  {
+func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, exchange2 string, internal bool, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, rate1 float64, rate2 float64)  {
 	if len(signals) > 0 {
 		for _, s := range signals {
 			if s.Types == 1 && internal { // Внутренний
@@ -67,7 +74,7 @@ func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 str
 					if s.Data1 == 3 {
 						if s.Data2 > percent {
 							go saveSignalsIn(db, asset1, asset2, asset3, percent, exchange1, s.Name, s.UserId)
-							//go saveRobotIn(db, asset1, asset2, asset3, percent, exchange1, s.Name, s.UserId, cfg, b, p, yo, hit)
+							//go saveRobotIn(db, asset1, asset2, asset3, percent, exchange1, s.Name, s.UserId, cfg, b, p, yo, hit, rate1, rate2, robots)
 						}
 					} else if s.Data1 == 4 {
 						if s.Data2 < percent {
@@ -92,24 +99,30 @@ func WorkSignals(db *sqlx.DB, signals []config.Signal, asset1 string, asset2 str
 	}
 }
 
-func saveRobotIn(db *sqlx.DB, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, name string, user int64, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc)  {
-	//TODO: таблица робота, получение
-	//TODO: передача из base "рейтов". Чисел, из которых высчитывается процент (второй и третий)
+func saveRobotIn(db *sqlx.DB, asset1 string, asset2 string, asset3 string, percent float64, exchange1 string, name string, user int64, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, rate1 float64, rate2 float64, robots []config.DBRobot2)  {
 	// check key
-	if exchange1 == "bittrex" && cfg.Api.Bittrex.Api != "" {
-		//safe := rate.asset2 * 5 / 100
-		//a, e := b.BuyLimit(strings.ToUpper(asset1 + "-" + asset2), robot.Summ, rate.asset2 + safe)
-		//fmt.Println(a, e)
-	}
-	if exchange1 == "poloniex" && cfg.Api.Poloniex.Api != "" {
-		//safe := rate.asset2 * 5 / 100
-		//p.Buy(strings.ToUpper(asset1 + "_" + asset2), rate.asset2 + safe, robot.Summ, "")
-	}
-	if exchange1 == "hitbtc" && cfg.Api.Hitbtc.Api != "" {
+	if len(robots) > 0 {
+		for _, robot := range robots {
+			if exchange1 == robot.Exchange1 && asset1 == robot.Asset1 && asset2 == robot.Asset2 && asset3 == robot.Asset3 {
+				if exchange1 == "bittrex" && cfg.Api.Bittrex.Api != "" {
+					safe := rate1 * 5 / 100
+					a, e := b.BuyLimit(strings.ToUpper(asset1 + "-" + asset2), robot.Summ, rate1 + safe)
+					fmt.Println(a, e)
+				}
+				if exchange1 == "poloniex" && cfg.Api.Poloniex.Api != "" {
+					safe := rate1 * 5 / 100
+					b, e := p.Buy(strings.ToUpper(asset1 + "_" + asset2), rate1 + safe, robot.Summ, "")
+					fmt.Println(b, e)
+				}
+				if exchange1 == "hitbtc" && cfg.Api.Hitbtc.Api != "" {
 
-	}
-	if exchange1 == "yobit" && cfg.Api.YoBit.Api != "" {
+				}
+				if exchange1 == "yobit" && cfg.Api.YoBit.Api != "" {
 
+				}
+				break
+			}
+		}
 	}
 }
 
