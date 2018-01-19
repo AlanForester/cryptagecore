@@ -47,7 +47,7 @@ func main() {
 	exchan := helpers.PrepareEx(sqli)
 	//helpers.ControlPairs(sqli, hit)
 	//daemons.Assets(sqli)
-	//daemons.HitAssets(sqli, hit)
+	daemons.UpdateAssets(bitt, polon, hit)
 
 	// Кусочек для тестов без интервала
 	//startt := time.Now()
@@ -56,14 +56,14 @@ func main() {
 	//daemons.YobitWorker(sqli, cfg, yo,pairs2,exchan, assets, c)
 
 	tickers := time.NewTicker(2 * time.Second) // Интервал для адекватных бирж
-	ytickers := time.NewTicker(6666666666 * time.Second) // Интервал для Ёбита
+	ytickers := time.NewTicker(20 * time.Second) // Интервал для Ёбита
 	go func() {
 		for {
 			select {
 			case <- tickers.C:
-				start := time.Now()
-				daemons.Worker(cfg, sqli, bitt, polon, yo, hit, pairs, pairs2, exchan, assets, c)
-				fmt.Println("Весь проход", time.Now().Sub(start))
+				start := time.Now().UTC()
+				daemons.Worker(cfg, sqli, bitt, polon, yo, hit, pairs, pairs2, exchan, assets, c, start)
+				fmt.Println("Весь проход", time.Now().UTC().Sub(start))
 			}
 		}
 	}()
@@ -72,7 +72,8 @@ func main() {
 			select {
 			case <- ytickers.C:
 				if cfg.Yobit {
-					daemons.YobitWorker(sqli,cfg, yo,pairs2,exchan, assets, c)
+					start := time.Now().UTC()
+					daemons.YobitWorker(sqli,cfg, yo,pairs2,exchan, assets, c, start)
 				}
 			}
 		}

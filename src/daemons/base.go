@@ -13,18 +13,20 @@ import (
 	"go-hitbtc"
 	"config"
 	"amqp"
+	"strconv"
 )
 
 // Обработчик ЁБита
-func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
+func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel, workrime time.Time)  {
 	// Стартуем сигналы
 	singals := helpers.InitSignals(db)
 	// И роботов
-	//robots := helpers.InitRobots(db)
+	robots := helpers.InitRobots(db)
 
 	maindata := make([]config.CD, 0) // Главный массив объектов с данными
 	services := make([]string, 0) // Массив строк с биржами
 	asks := make(map[string]map[string]float64) // Массив ASK'ов по биржам
+	bids := make(map[string]map[string]float64) // Массив BID'ов по биржам
 
 	// Обрабатываем
 	yostart := time.Now()
@@ -32,6 +34,7 @@ func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[s
 	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
 	ex := "yobit"
 	asks[ex] = make(map[string]float64)
+	bids[ex] = make(map[string]float64)
 	for k, v := range yoba {
 		data := config.CD{}
 
@@ -56,23 +59,27 @@ func YobitWorker(db *sqlx.DB, cfg config.Settings, yo *yobit.Yobit, pairs2 map[s
 		maindata = append(maindata, data)
 
 		asks[ex][name1] = v.Low
+		bids[ex][name1] = v.High
 	}
 	services = append(services, ex)
 
 	// Главный обработчик
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg, nil, nil, yo, nil)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, bids, assets, mq, cfg, nil, nil, yo, nil, robots, workrime)
 }
 
 // Обработчик адекватных бирж
-func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel)  {
+func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, pairs []config.DBPair, pairs2 map[string][]string, exchan map[string][]string, assets map[string]string, mq *amqp.Channel, workrime time.Time)  {
 	start := time.Now()
 
 	// Стартуем сигналы
 	singals := helpers.InitSignals(db)
+	// И роботов
+	robots := helpers.InitRobots(db)
 
 	maindata := make([]config.CD, 0) // Главный массив объектов с данными
 	services := make([]string, 0) // Массив строк с биржами
 	asks := make(map[string]map[string]float64) // Массив ASK'ов по биржам
+	bids := make(map[string]map[string]float64) // Массив BID'ов по биржам
 
 	// Обработка и стандартизация Bittrex
 	bitstart := time.Now()
@@ -83,6 +90,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	} else {
 		ex := "bittrex"
 		asks[ex] = make(map[string]float64)
+		bids[ex] = make(map[string]float64)
 		for _, v := range bit {
 			data := config.CD{}
 
@@ -109,6 +117,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			maindata = append(maindata, data)
 
 			asks[ex][name1] = ask
+			bids[ex][name1] = bid
 		}
 		services = append(services, ex)
 	}
@@ -122,6 +131,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	} else {
 		ex := "poloniex"
 		asks[ex] = make(map[string]float64)
+		bids[ex] = make(map[string]float64)
 		for k, v := range pol {
 			data := config.CD{}
 
@@ -148,6 +158,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			maindata = append(maindata, data)
 
 			asks[ex][name1] = ask
+			bids[ex][name1] = bid
 		}
 		services = append(services, ex)
 	}
@@ -159,6 +170,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	if len(a) > 0 {
 		ex := "hitbtc"
 		asks[ex] = make(map[string]float64)
+		bids[ex] = make(map[string]float64)
 		for _, v := range a {
 			data := config.CD{}
 
@@ -174,6 +186,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 			// Добавляем
 			maindata = append(maindata, data)
 			asks[ex][v.Symbol] = v.Ask
+			bids[ex][v.Symbol] = v.Bid
 		}
 		services = append(services, ex)
 	}
@@ -185,6 +198,7 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	//	fmt.Println("Запрос к ЁБит", time.Now().Sub(yostart))
 	//	ex := "yobit"
 	//	asks[ex] = make(map[string]float64)
+	//	bids[ex] = make(map[string]float64)
 	//	for k, v := range yoba {
 	//		data := config.CD{}
 	//
@@ -209,17 +223,18 @@ func Worker(cfg config.Settings, db *sqlx.DB, b *bittrex.Bittrex, p *poloniex.Po
 	//		maindata = append(maindata, data)
 	//
 	//		asks[ex][name1] = v.Low
+	//		bids[ex][name1] = v.High
 	//	}
 	//	services = append(services, ex)
 	//}
 
 	//maindata = helpers.CheckPairs(maindata, pairs)
 	fmt.Println("Итого на запросы:", time.Now().Sub(start))
-	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, assets, mq, cfg, b, p, yo, hit)
+	MainWorker(db, maindata, singals, pairs2, exchan, services, asks, bids, assets, mq, cfg, b, p, yo, hit, robots, workrime)
 }
 
 // Главный обработчик и заносчик данных в базу
-func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc)  {
+func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 map[string][]string, exchan map[string][]string, services []string, asks map[string]map[string]float64, bids map[string]map[string]float64, assets map[string]string, mq *amqp.Channel, cfg config.Settings, b *bittrex.Bittrex, p *poloniex.Poloniex, yo *yobit.Yobit, hit *hitbtc.HitBtc, robots []config.DBRobot2, workrime time.Time)  {
 	if len(data) > 0 { // Нет данных - нет работы
 		// Внешний арбитраж
 		startSql := "INSERT INTO divergent (pair_id, exchanges1_id, exchanges2_id, diff, time) VALUES " // Строим строку
@@ -235,45 +250,50 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 		var saveZone []string
 
 		for _,a1 := range data {
-			if cfg.Mqmode { // Режим работы с кроликом
-				// Строим карту
-				output := make(map[string]interface{})
-				output["market"] = exchan[a1.Market][1]
-				output["asset1"] = assets[a1.Pair1]
-				output["asset2"] = assets[a1.Pair2]
-				output["last"] = a1.Last
-				output["bid"] = a1.Bid
-				output["ask"] = a1.Ask
-				// Суем в кролика
-				helpers.AddMQ("external", a1.Market + "-" + a1.Pair1  + "-" + a1.Pair2, mq, output)
-			} else { // ПГ режим
-				go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
-			}
+			if (helpers.Dasset[a1.Market + "_" + strings.ToUpper(a1.Pair1)] && helpers.Dasset[a1.Market + "_" + strings.ToUpper(a1.Pair2)]) || a1.Market == "yobit" {
+				if cfg.Mqmode { // Режим работы с кроликом
+					// Строим карту
+					output := make(map[string]interface{})
+					output["market"] = exchan[a1.Market][1]
+					output["asset1"] = assets[a1.Pair1]
+					output["asset2"] = assets[a1.Pair2]
+					output["last"] = a1.Last
+					output["bid"] = a1.Bid
+					output["ask"] = a1.Ask
+					//output["id"] = strconv.FormatInt(time.Now().Unix(), 0) + strconv.FormatInt(time.Now().UnixNano(), 0)
+					// Суем в кролика
+					helpers.AddMQ("external", a1.Market + "-" + a1.Pair1  + "-" + a1.Pair2, mq, output)
+				} else { // ПГ режим
+					go helpers.SaveTickers(db, a1.Market, a1.Pair1, a1.Pair2, a1.Last, helpers.FloatToString(a1.Bid), helpers.FloatToString(a1.Ask), time.Now().Format(time.RFC3339), a1.Volume)
+				}
 
-			// Переборчик
-			for _,a2 := range data {
-				if a1.Market != a2.Market {
-					if a1.Pair == a2.Pair {
-						var summ float64
-						if a1.Bid > a2.Ask {
-							summ = (a1.Bid * 100 / a2.Ask) - 100
-						}
-						if a2.Bid > a1.Ask {
-							summ = (a2.Bid * 100 / a1.Ask) - 100
-						}
-						if summ > 0 {
-							var issetsz bool
-							for _, sz := range saveZone {
-								if sz == a2.Market + a1.Pair {
-									issetsz = true
-									break
+				// Переборчик
+				for _,a2 := range data {
+					if (helpers.Dasset[a2.Market + "_" + strings.ToUpper(a2.Pair1)] && helpers.Dasset[a2.Market + "_" + strings.ToUpper(a2.Pair2)]) || a2.Market == "yobit" {
+						if a1.Market != a2.Market {
+							if a1.Pair == a2.Pair {
+								var summ float64
+								if a1.Bid > a2.Ask {
+									summ = (a1.Bid * 100 / a2.Ask) - 100
 								}
-							}
-							if issetsz == false {
-								saveZone = append(saveZone, a1.Market + a1.Pair)
-								sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
-								// Обработка сигналов
-								go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false, cfg, b, p, yo, hit, a2.Ask, 0) // Внешний
+								if a2.Bid > a1.Ask {
+									summ = (a2.Bid * 100 / a1.Ask) - 100
+								}
+								if summ > 0 {
+									var issetsz bool
+									for _, sz := range saveZone {
+										if sz == a2.Market + a1.Pair {
+											issetsz = true
+											break
+										}
+									}
+									if issetsz == false {
+										saveZone = append(saveZone, a1.Market + a1.Pair)
+										sqlStr += "(" + pairs2[a1.DelimPair][0] + ", " + exchan[a1.Market][0] + ", " + exchan[a2.Market][0] + ", " + helpers.FloatToString(summ) + ", '" + time.Now().Format(time.RFC3339) + "'),"
+										// Обработка сигналов
+										go helpers.WorkSignals(db, signals, a1.Pair1, a1.Pair2, "", summ, a1.Market, a2.Market, false, cfg, b, p, yo, hit, a1.Ask, a2.Ask, 0, robots) // Внешний
+									}
+								}
 							}
 						}
 					}
@@ -297,19 +317,24 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 		operate := make(map[string][][]string)
 		for _, s := range services {
 			for _, d := range data {
-				arr := []string{d.Pair1, d.Pair2}
-				operate[s] = append(operate[s], arr)
+				if (helpers.Dasset[s + "_" + strings.ToUpper(d.Pair1)] && helpers.Dasset[s + "_" + strings.ToUpper(d.Pair2)]) || s == "yobit" {
+					arr := []string{d.Pair1, d.Pair2, strconv.FormatFloat(d.Ask, 'E', -1, 64)}
+					operate[s] = append(operate[s], arr)
+				}
 			}
 		}
 
 		// Проверяем первую пару и исходный вариант, собираем второй массив
 		operate2 := make(map[string][][]string)
 		for _, d1 := range data {
-			for _, v := range operate[d1.Market] {
-				if v[1] == d1.Pair1 && d1.Pair1 != v[0] {
-					operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair1, d1.Pair2, v[0]})
-				} else if v[1] == d1.Pair2 && d1.Pair2 != v[0] {
-					operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair2, d1.Pair1, v[0]})
+			if (helpers.Dasset[d1.Market + "_" + strings.ToUpper(d1.Pair1)] && helpers.Dasset[d1.Market + "_" + strings.ToUpper(d1.Pair2)]) || d1.Market == "yobit" {
+				for _, v := range operate[d1.Market] {
+					if v[1] == d1.Pair1 && d1.Pair1 != v[0] {
+						operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair1, d1.Pair2, v[0], v[2], v[1], "da"})
+					} else if v[1] == d1.Pair2 && d1.Pair2 != v[0] {
+						//operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair1, d1.Pair2, v[0], v[2], v[1], "net"})
+						operate2[d1.Market] = append(operate2[d1.Market], []string{d1.Pair2, d1.Pair1, v[0], v[2], v[1], "net"})
+					}
 				}
 			}
 		}
@@ -319,11 +344,39 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 		//}
 		// Сравниваем третью пару с второй и первым элементом. Считаем денюжки и сохраняем
 		for _, d2 := range data {
-			go func() { // Разпараллеливаем
+			if (helpers.Dasset[d2.Market + "_" + strings.ToUpper(d2.Pair1)] && helpers.Dasset[d2.Market + "_" + strings.ToUpper(d2.Pair2)]) || d2.Market == "yobit" {
+				//go func() { // Разпараллеливаем
 				for _, d0 := range operate2[d2.Market] {
-					if len(d0) > 2 && d0[0] != "" && d0[1] != "" && d0[2] != "" && d2.Pair2 != "" && d2.Pair1 != "" {
+					if len(d0) > 4 && d0[0] != "" && d0[1] != "" && d0[2] != "" && d2.Pair2 != "" && d2.Pair1 != "" {
 						if (d0[1] == d2.Pair2 && d2.Pair1 == d0[2]) || (d0[1] == d2.Pair1 && d2.Pair2 == d0[2]) {
-							summ := Round(asks[d2.Market][d0[0] + d0[1]] / d2.Ask, 2)
+							var summ float64
+							if d0[1] == d2.Pair2 && d2.Pair1 == d0[2] { // Если обратная связь
+								if d0[5] == "net" {
+									summ = ((1 / asks[d2.Market][d0[2] + d0[4]] * bids[d2.Market][d0[1] + d0[0]] * d2.Bid) - 1) * 100
+								} else {
+									summ = ((1 / asks[d2.Market][d0[2] + d0[4]] / asks[d2.Market][d0[1] + d0[0]] * d2.Bid) - 1) * 100
+								}
+
+								if !math.IsInf(summ, 0) && summ > 0 {
+									fmt.Println("обратная", d2.Market, "1 / " , d0[2] , "->", d0[4], asks[d2.Market][d0[2] + d0[4]], ",", d0[1], "->" , d0[0], asks[d2.Market][d0[1] + d0[0]], ",", d2.Pair1, "->", d2.Pair2, d2.Ask, "summ", summ)
+								}
+							} else { // Если прямая
+								if d0[5] == "net" {
+									summ = ((1 / asks[d2.Market][d0[2] + d0[4]] * bids[d2.Market][d0[0] + d0[1]] / d2.Ask) - 1) * 100
+								} else {
+									summ = ((1 / asks[d2.Market][d0[2] + d0[4]] / asks[d2.Market][d0[0] + d0[1]] / d2.Ask) - 1) * 100
+								}
+
+								if !math.IsInf(summ, 0) && summ > 0 {
+									fmt.Println("прямая", d2.Market, "1 / " , d0[2] , "->", d0[4], asks[d2.Market][d0[2] + d0[4]], ",", d0[0], "->" , d0[1], asks[d2.Market][d0[0] + d0[1]], ",", d2.Pair1, "->", d2.Pair2, d2.Ask, "summ", summ)
+								}
+							}
+
+							if math.IsInf(summ, 0) {
+								summ = 0
+							}
+							summ = Round(summ, 2)
+
 							cpa := summ * 0.25 / 100
 							if summ > 0 {
 								if cfg.Mqmode { // Режим работы с КроликMQ
@@ -333,21 +386,25 @@ func MainWorker(db *sqlx.DB, data []config.CD, signals []config.Signal, pairs2 m
 									output["asset2"] = assets[d0[0]]
 									output["asset3"] = assets[d0[1]]
 									output["percent"] = summ - cpa
+									//output["id"] = strconv.FormatInt(time.Now().Unix(), 0) + strconv.FormatInt(time.Now().UnixNano(), 0)
 									helpers.AddMQ("internal", d2.Market + "-" + d0[2]  + "-" + d0[0] + "-" + d0[1], mq, output)
 									ini++
 								} else { // Режим работы с ПГ
-									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market)
+									go helpers.SaveInternal(db, d0[2], d0[0], d0[1], summ - cpa, d2.Market, workrime)
 								}
-								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true, cfg, b, p, yo, hit, asks[d2.Market][d0[0] + d0[1]], d2.Ask ) // Внутренний
+								asum, _ := strconv.ParseFloat(d0[3], -1)
+								go helpers.WorkSignals(db, signals, d0[2], d0[0], d0[1], summ - cpa, d2.Market, "", true, cfg, b, p, yo, hit, asum, asks[d2.Market][d0[0] + d0[1]], d2.Ask, robots) // Внутренний
 							}
 							break
 						}
 					}
 				}
-			}()
-		}
+				//}()
+			}
 
+		}
 		fmt.Println("Внутренний:", time.Now().Sub(start))
+		helpers.CleanInternal(db, workrime)
 	}
 }
 
