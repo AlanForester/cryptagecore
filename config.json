@@ -38,5 +38,5 @@
   "jwt": "megahash",
   "port": "8089",
   "yobit": false,
-  "mqmode": true
+  "mqmode": false
 }
