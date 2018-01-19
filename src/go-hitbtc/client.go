@@ -22,7 +22,7 @@ type client struct {
 
 // NewClient return a new HitBtc HTTP client
 func NewClient(apiKey, apiSecret string) (c *client) {
-	return &client{apiKey, apiSecret, &http.Client{}, 30 * time.Second, false}
+	return &client{apiKey, apiSecret, &http.Client{}, 2 * time.Second, false}
 }
 
 // NewClientWithCustomHttpConfig returns a new HitBtc HTTP client using the predefined http client

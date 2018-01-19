@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
+	"crypto/hmac"
+	"crypto/sha512"
 )
 
 type client struct {
@@ -87,4 +90,59 @@ func (c *client) do(method string, ressource string, payload string) (response [
 		err = errors.New(resp.Status)
 	}
 	return response, err
+}
+
+// do prepare and process HTTP request to ЁBit API
+func (c *client) tdo(method string, ressource string, payload string, key string) (response []byte, err error) {
+	connectTimer := time.NewTimer(c.httpTimeout)
+
+	var rawurl string
+	if strings.HasPrefix(ressource, "http") {
+		rawurl = ressource
+	} else {
+		rawurl = fmt.Sprintf("%s/%s/%s", PRIV_BASE, API_VERSION, ressource)
+	}
+
+	payload = payload + "&nonce=" + YoNonce()
+	mac := hmac.New(sha512.New, []byte(key))
+	mac.Write([]byte(payload))
+	key1 := mac.Sum(nil)
+
+	req, err := http.NewRequest(method, rawurl, strings.NewReader(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Add("Key", key)
+	req.Header.Add("Sign", string(key1))
+
+	resp, err := c.doTimeoutRequest(connectTimer, req)
+	if err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
+	response, err = ioutil.ReadAll(resp.Body)
+	// fmt.Println(fmt.Sprintf("reponse %s", response), err)
+	if err != nil {
+		return response, err
+	}
+	if resp.StatusCode != 200 {
+		err = errors.New(resp.Status)
+	}
+	return response, err
+}
+
+// Получает и обновляет nonce ёбита
+func YoNonce() string {
+	b, err := ioutil.ReadFile("yobit")
+	if err == nil {
+		a, _ := strconv.Atoi(string(b))
+		a1 := a + 1
+		ioutil.WriteFile("yobit", []byte(strconv.Itoa(a1)), 0666)
+
+		return string(b)
+	} else {
+		ioutil.WriteFile("yobit", []byte("2"), 0666)
+		return "1"
+	}
 }

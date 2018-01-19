@@ -237,3 +237,9 @@ func (b *HitBtc) GetTransactions(start uint64, end uint64, limit uint32) (transa
 	err = json.Unmarshal(r, &transactions)
 	return
 }
+
+func (b *HitBtc) Order(params map[string]string) (result Trade, err error) {
+	r, err := b.client.do("POST", "order", params, true)
+	err = json.Unmarshal(r, &result)
+	return
+}

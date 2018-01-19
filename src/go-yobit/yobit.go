@@ -11,6 +11,7 @@ import (
 
 const (
 	API_BASE    = "https://yobit.net/api"
+	PRIV_BASE    = "https://yobit.net/tapi"
 	API_VERSION = "3"
 )
 
@@ -54,6 +55,15 @@ func (y *Yobit) GetTicks(ticks string) (string, error) {
 	//fmt.Println("https://yobit.net/api/3/ticker/"+ticks)
 	r, err := y.client.do("GET", "ticker/" + ticks, "")
 	return string(r), err
+}
+
+func (y *Yobit) Trade(key string, params string) (Trade, error) {
+	var tr Trade
+	r, err := y.client.tdo("POST", "trade", params, key)
+	if err == nil {
+		err = json.Unmarshal(r, &tr)
+	}
+	return tr, err
 }
 
 func (y *Yobit) GetOrderBook(pair string, limit int) (OrderBook, error) {
