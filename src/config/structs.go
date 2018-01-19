@@ -150,5 +150,5 @@ type DBRobot2 struct {
 	Data1 int `json:"data1" db:"data1"` // 1 - расхождение на больше внешний, 2 - расх. на меньше внешний, 3 - расх. на больше внутрн 4 - ...
 	Data2 float64 `json:"data2" db:"data2"`
 	Summ float64 `json:"summ" db:"summ"` // Сумма
-	Safe int64 `json:"safe" db:"safe"` // Страховое плечо
+	Safe float64 `json:"safe" db:"safe"` // Страховое плечо
 }
